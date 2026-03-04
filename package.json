@@ -1,0 +1,237 @@
+{
+  "name": "kibana-pr-reviewer",
+  "displayName": "Kibana PR Reviewer",
+  "description": "Review Kibana pull requests with team filtering, smart file ordering, and inline diffs",
+  "version": "0.1.0",
+  "publisher": "elastic",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "kibana-pr-reviewer",
+          "title": "Kibana PR Reviewer",
+          "icon": "resources/icons/pr-review.svg"
+        }
+      ]
+    },
+    "views": {
+      "kibana-pr-reviewer": [
+        {
+          "id": "kibana-pr-reviewer.prPanel",
+          "name": "PR Reviewer",
+          "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "kibana-pr-reviewer.refresh",
+        "title": "Refresh PRs",
+        "icon": "$(refresh)",
+        "category": "Kibana PR Reviewer"
+      },
+      {
+        "command": "kibana-pr-reviewer.checkoutPR",
+        "title": "Checkout PR",
+        "icon": "$(arrow-down)",
+        "category": "Kibana PR Reviewer"
+      },
+      {
+        "command": "kibana-pr-reviewer.openDiff",
+        "title": "Open File Diff",
+        "category": "Kibana PR Reviewer"
+      },
+      {
+        "command": "kibana-pr-reviewer.setApiKey",
+        "title": "Set LLM API Key",
+        "category": "Kibana PR Reviewer"
+      },
+      {
+        "command": "kibana-pr-reviewer.clearCheckedOutPR",
+        "title": "Clear Checked Out PR",
+        "category": "Kibana PR Reviewer"
+      },
+      {
+        "command": "kibana-pr-reviewer.showDiagnostics",
+        "title": "Show Diagnostics (teams + PR data)",
+        "category": "Kibana PR Reviewer"
+      },
+      {
+        "command": "kibana-pr-reviewer.enableNeedsReviewFilter",
+        "title": "Show only PRs needing review",
+        "icon": "$(filter)",
+        "category": "Kibana PR Reviewer"
+      },
+      {
+        "command": "kibana-pr-reviewer.disableNeedsReviewFilter",
+        "title": "Show all PRs (clear review filter)",
+        "icon": "$(filter-filled)",
+        "category": "Kibana PR Reviewer"
+      },
+      {
+        "command": "kibana-pr-reviewer.enableOwnedByMeFilter",
+        "title": "Show only files owned by my teams",
+        "icon": "$(person)",
+        "category": "Kibana PR Reviewer"
+      },
+      {
+        "command": "kibana-pr-reviewer.disableOwnedByMeFilter",
+        "title": "Show all changed files",
+        "icon": "$(person-filled)",
+        "category": "Kibana PR Reviewer"
+      },
+      {
+        "command": "kibana-pr-reviewer.addLineComment",
+        "title": "Add PR Comment on This Line",
+        "category": "Kibana PR Reviewer"
+      },
+      {
+        "command": "kibana-pr-reviewer.refreshComments",
+        "title": "Refresh Inline Comments",
+        "icon": "$(comment-discussion)",
+        "category": "Kibana PR Reviewer"
+      },
+      {
+        "command": "kibana-pr-reviewer.prevFile",
+        "title": "Previous Diff",
+        "icon": "$(arrow-left)",
+        "category": "Kibana PR Reviewer"
+      },
+      {
+        "command": "kibana-pr-reviewer.nextFile",
+        "title": "Next Diff",
+        "icon": "$(arrow-right)",
+        "category": "Kibana PR Reviewer"
+      },
+      {
+        "command": "kibana-pr-reviewer.createNote",
+        "title": "Submit",
+        "icon": "$(check)",
+        "category": "Kibana PR Reviewer"
+      },
+      {
+        "command": "kibana-pr-reviewer.replyNote",
+        "title": "Reply",
+        "icon": "$(check)",
+        "category": "Kibana PR Reviewer"
+      },
+      {
+        "command": "kibana-pr-reviewer.deleteThread",
+        "title": "Delete",
+        "icon": "$(trash)",
+        "category": "Kibana PR Reviewer"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "kibana-pr-reviewer.refresh",
+          "when": "view == kibana-pr-reviewer.prPanel",
+          "group": "navigation@3"
+        },
+        {
+          "command": "kibana-pr-reviewer.prevFile",
+          "when": "view == kibana-pr-reviewer.prPanel",
+          "group": "navigation@1"
+        },
+        {
+          "command": "kibana-pr-reviewer.nextFile",
+          "when": "view == kibana-pr-reviewer.prPanel",
+          "group": "navigation@2"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "kibana-pr-reviewer.addLineComment",
+          "when": "isInDiffEditor",
+          "group": "kibana-pr-reviewer@1"
+        }
+      ],
+      "comments/commentThread/context": [
+        {
+          "command": "kibana-pr-reviewer.createNote",
+          "group": "inline@1",
+          "when": "commentController == kibana-pr-reviewer"
+        },
+        {
+          "command": "kibana-pr-reviewer.deleteThread",
+          "group": "inline@2",
+          "when": "commentController == kibana-pr-reviewer"
+        }
+      ],
+      "view/item/context": []
+    },
+    "keybindings": [
+      {
+        "command": "kibana-pr-reviewer.nextFile",
+        "key": "alt+]",
+        "mac": "alt+]"
+      },
+      {
+        "command": "kibana-pr-reviewer.prevFile",
+        "key": "alt+[",
+        "mac": "alt+["
+      }
+    ],
+    "configuration": {
+      "title": "Kibana PR Reviewer",
+      "properties": {
+        "kibana-pr-reviewer.repo": {
+          "type": "string",
+          "default": "elastic/kibana",
+          "description": "GitHub repository to review PRs from (owner/repo)"
+        },
+        "kibana-pr-reviewer.userTeams": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Override GitHub team detection. Use @elastic/team-name format (e.g. [\"@elastic/kibana-core\"]). Leave empty for auto-detection."
+        },
+        "kibana-pr-reviewer.llmProvider": {
+          "type": "string",
+          "enum": ["none", "openai", "anthropic"],
+          "default": "none",
+          "description": "LLM provider for intelligent file ordering. Use 'none' to rely on heuristics only."
+        },
+        "kibana-pr-reviewer.llmModel": {
+          "type": "string",
+          "default": "",
+          "description": "LLM model override. Defaults: openai=gpt-4o-mini, anthropic=claude-haiku-4-5"
+        },
+        "kibana-pr-reviewer.llmApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API key for the configured LLM provider (OpenAI or Anthropic). Used as a fallback when GitHub Copilot / vscode.lm is not available."
+        },
+        "kibana-pr-reviewer.prLimit": {
+          "type": "number",
+          "default": 50,
+          "description": "Maximum number of PRs to fetch"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "package": "vsce package --no-dependencies",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.90.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "esbuild": "^0.24.0",
+    "eslint": "^9.0.0",
+    "typescript": "^5.6.0",
+    "@vscode/vsce": "^3.0.0"
+  },
+  "dependencies": {}
+}
