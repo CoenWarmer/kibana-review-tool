@@ -8,21 +8,23 @@ Kibana has a large influx of new PRs. The introduction of AI assisted coding alr
 
 Traditionally PRs are reviewed via the Github UI. While this is good for some use cases, it could be way better. At the time of writing, Github's UI has been largely stagnant for years.
 
-**Data needed for a good review**
+### Data needed for a good review
 There is not an insignficant amount of data points that an engineer (or an LLM) needs to fully judge the quality of a PR.
 
-You need:
+A reviewer needs:
 - the diffs
-- the context in which the diffs are placed
+- the context in which the diffs are placed (the entire file)
+- quick access to the existing files and folders surrounding the diffs
 - type information
 - information on test coverage
 - how the proposed feature behaves functionally, at runtime
 
-Therefore, strictly reviewing from the Github UI is incomplete. As such, it leads to low quality reviews.
+Therefore, strictly reviewing from the Github UI means a reviewer has not enough data to come to a good judgement. As such, this strategy leads to low quality reviews.
 
-Some reviewers go further than a look at the code and actually check out the branch and see how the feature behaves. But there is no hard requirement on this.
+### Friction when reviewing in Kibana
+Some reviewers go further than a look at the code and actually check out the branch and see how the feature behaves.
 
-This is exacerbated by the friction that is imposed on the reviewer in getting a PR ready to review.
+This is exacerbated by the friction that is imposed on the reviewer in getting a Kibana PR ready to review.
 
 A reviewer needs to:
 - find the PR that she needs to review
@@ -30,10 +32,13 @@ A reviewer needs to:
 - run yarn kbn bootstrap
 - start es + kibana
 - optionally load test data / fixtures
+- understand the code
+- understand the intended behavior
+- judge the code in terms of coding standards
+- judge the code in context of the product
+- judge if the code covers both happy and unhappy paths
 
-*Now* the review can start in earnest.
-
-This is slow an unwieldy.
+This, especially the getting started parts, is slow an unwieldy.
 
 The speed of bootstrapping / starting Kibana we can't fix easily, but we can improve our tooling.
 
