@@ -22,9 +22,9 @@ A reviewer needs:
 Therefore, strictly reviewing from the Github UI means a reviewer has not enough data to come to a good judgement. As such, this strategy leads to low quality reviews.
 
 ### Friction when reviewing in Kibana
-Some reviewers go further than a look at the code and actually check out the branch and see how the feature behaves.
+Some reviewers go further than a look at the code and actually check out the branch and see how the feature behaves. While some do this, many do not.
 
-This is exacerbated by the friction that is imposed on the reviewer in getting a Kibana PR ready to review.
+One of the reasons that contribute to reviewers not checking out PRs is due to the friction that is imposed on the reviewer in getting a Kibana PR ready to review.
 
 A reviewer needs to:
 - find the PR that she needs to review
