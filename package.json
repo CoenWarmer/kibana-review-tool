@@ -4,6 +4,11 @@
   "description": "Review Kibana pull requests with team filtering, smart file ordering, and inline diffs",
   "version": "0.1.0",
   "publisher": "elastic",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/coenwarmer/kibana-review-tool"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },
