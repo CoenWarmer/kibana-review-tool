@@ -2,6 +2,42 @@
 
 A VSCode/Cursor extension for Kibana engineers to review pull requests efficiently.
 
+## Why?
+
+Kibana has a large influx of new PRs being opened. The introduction of AI assisted coding already makes the influx even higher.
+
+Traditionally PRs are reviewed via the Github UI. While this is good for some use cases, it could be way better. At the time of writing, Github's UI is largely stagnant.
+
+There is not an insignficant amount of data points that an engineer (or an LLM) needs to fully judge the quality of a PR.
+
+You need:
+- the diffs
+- the context in which the diffs are placed
+- type information
+- information on test coverage
+- how the proposed feature behaves functionally, at runtime
+
+Therefore, strictly reviewing from the Github UI leads to low quality reviews.
+
+Some reviewers go further and actually check out the branch and see how the feature behaves. But there is no hard requirement on this.
+
+This is exacerbated by the friction that is imposed on the reviewer in getting a PR ready to review.
+
+A reviewer needs to:
+- find the PR that she needs to review
+- switch to the branch
+- run yarn kbn bootstrap
+- start es + kibana
+- optionally load test data / fixtures
+
+*Now* the review can start in earnest.
+
+This is slow an unwieldy.
+
+The speed of bootstrapping / starting Kibana we can't fix easily, but we can improve our tooling.
+
+This is where this extension comes in.
+
 ## Features
 
 - **Team-filtered PR queue** — shows only PRs where your team is a requested reviewer
