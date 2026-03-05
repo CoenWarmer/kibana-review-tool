@@ -17,9 +17,9 @@ You need:
 - information on test coverage
 - how the proposed feature behaves functionally, at runtime
 
-Therefore, strictly reviewing from the Github UI leads to low quality reviews.
+Therefore, strictly reviewing from the Github UI is fundamentally incomplete. Thus, it leads to low quality reviews.
 
-Some reviewers go further and actually check out the branch and see how the feature behaves. But there is no hard requirement on this.
+Some reviewers go further than a look at the code and actually check out the branch and see how the feature behaves. But there is no hard requirement on this.
 
 This is exacerbated by the friction that is imposed on the reviewer in getting a PR ready to review.
 
