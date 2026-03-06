@@ -55,8 +55,10 @@ This is where this extension comes in.
 - **One-click PR checkout** — runs `gh pr checkout <number>` for you
 <img width="440" height="412" alt="Screenshot 2026-03-05 at 19 10 07" src="https://github.com/user-attachments/assets/6b557499-73d8-4580-b11c-18ea94aba286" />
 
-- **Smart file ordering** — orders changed files from core implementation to peripheral (tests, config, docs), with optional LLM enhancement
-- **Inline diff view** — click any file to open a color-highlighted diff
+- **Analyze the diff using an LLM** — provide a summary of every changed files so you quickly build context on what the changed files actually do. Also provide two sorting strategies for the order in which to review: top down and bottom up.
+<img width="430" height="423" alt="Screenshot 2026-03-06 at 09 28 41" src="https://github.com/user-attachments/assets/351b789a-0ca2-4994-8f4b-e4666842185e" />
+
+- **Inline diff view** — click any file to open a color-highlighted diff, read and reply to comments by authors and reviewers
 - **Approve, comment or request changes** — Get the full discussion inside the IDE
 <img width="426" height="155" alt="Screenshot 2026-03-05 at 19 12 55" src="https://github.com/user-attachments/assets/734c3cdc-5b6d-4ae3-872e-3f54a46e00b9" />
 
