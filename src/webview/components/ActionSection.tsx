@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { GhPullRequest, InboundMessage } from '../types';
+import { Spinner } from './Spinner';
 
 interface ActionSectionProps {
   pr: GhPullRequest;
@@ -37,7 +38,7 @@ export function ActionSection({
         >
           {checkoutBusy ? (
             <>
-              <span className="checkout-spin">⟳</span>
+              <Spinner className="spinner-mr" />
               {checkoutStage || 'Checking out…'}
             </>
           ) : isCheckedOut ? (

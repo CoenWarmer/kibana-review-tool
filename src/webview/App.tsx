@@ -1,5 +1,6 @@
 import { useEffect, useReducer } from 'react';
 import { postMessage } from './vscode';
+import { Spinner } from './components/Spinner';
 import { TabBar } from './components/TabBar';
 import { QueuePane } from './components/QueuePane';
 import { ReviewingPane } from './components/ReviewingPane';
@@ -14,6 +15,7 @@ const initialState: AppState = {
   needsReviewFilterActive: false,
   userTeams: [],
   teamFilter: '',
+  teamFilterMembers: [],
   activeTab: 'queue',
   currentPr: null,
   discussionComments: [],
@@ -100,9 +102,16 @@ export function App() {
     document.getElementById(paneId)?.scrollTo({ top: 0 });
   }, [state.activeTab]);
 
-  const queueLabel = state.isLoading
-    ? 'Review Queue'
-    : `Review Queue (${state.allPrs.length})`;
+  const visiblePrCount = state.allPrs.filter((pr) => !pr.isDraft).length;
+  const queueLabel = (
+    <>
+      Review Queue{' '}
+      {state.isLoading
+        ? <Spinner className="tab-spinner" />
+        : <span className="tab-count">({visiblePrCount})</span>
+      }
+    </>
+  );
   const reviewingLabel = state.currentPr
     ? `Reviewing #${state.currentPr.number}`
     : 'Reviewing';
@@ -124,6 +133,7 @@ export function App() {
           selectedPrNumber={state.currentPr?.number ?? null}
           userTeams={state.userTeams}
           teamFilter={state.teamFilter}
+          teamFilterMembers={state.teamFilterMembers}
         />
       </div>
 

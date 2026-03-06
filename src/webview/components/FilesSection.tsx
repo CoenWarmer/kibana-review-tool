@@ -4,6 +4,7 @@ import { postMessage } from '../vscode';
 import { cfBuildTree, cfCompactFolders, cfStatusIcon, normalizeFileStatus } from '../utils';
 import type { CfTreeChild } from '../utils';
 import type { GhPrFile, OrderedFile, ReviewOrderSuggestion, OrderMode } from '../types';
+import { Spinner } from './Spinner';
 
 interface Props {
   files: OrderedFile[];
@@ -72,7 +73,7 @@ export function FilesSection({
 
   let body: React.ReactNode;
   if (isLoading) {
-    body = <div className="cf-status"><span className="cf-spin">⟳</span> Loading…</div>;
+    body = <div className="cf-status"><Spinner className="spinner-mr" /> Loading…</div>;
   } else if (errorMessage) {
     body = <div className="cf-status error">✕ {errorMessage}</div>;
   } else if (files.length === 0) {
@@ -143,7 +144,7 @@ export function FilesSection({
               title="Ask an LLM to suggest the best review order for these files"
               onClick={() => postMessage({ type: 'suggestOrder' })}
             >
-              {isOrderLoading ? <><span className="cf-spin">⟳</span> Analyzing…</> : '✦ Suggest review order'}
+              {isOrderLoading ? <><Spinner className="spinner-mr" /> Analyzing…</> : '✦ Suggest review order'}
             </button>
             <div className="order-mode-toggle">
               {(['default', 'top-down', 'bottom-up'] as OrderMode[]).map((mode) => (

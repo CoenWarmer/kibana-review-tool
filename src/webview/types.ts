@@ -42,6 +42,7 @@ export interface GhPullRequest {
   author: { login: string };
   url: string;
   latestReviews: GhReview[];
+  assignees?: Array<{ login: string }>;
   teamReviewStatuses?: Record<string, TeamReviewInfo>;
   /** Populated after PR detail is fetched; absent on queue list items. */
   files?: GhPrFile[];
@@ -87,6 +88,8 @@ export interface AppState {
   needsReviewFilterActive: boolean;
   userTeams: string[];
   teamFilter: string;
+  /** Member logins for the currently selected team filter; empty when no team is selected. */
+  teamFilterMembers: string[];
 
   // Tab
   activeTab: 'queue' | 'reviewing';

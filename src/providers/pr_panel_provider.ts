@@ -80,6 +80,7 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
 
   // ─── Synthtrace ──────────────────────────────────────────────────────────────
   private synthtraceScenarios: string[] = [];
+  private teamFilterMembers: string[] = [];
 
   // ─── Checkout button state ──────────────────────────────────────────────────
   private checkoutBusy = false;
@@ -243,6 +244,7 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
           this.teamFilter = msg.team;
           this.sendState({ teamFilter: this.teamFilter });
           this.onSetTeamFilter?.(msg.team);
+          void this.fetchAndSendTeamMembers(msg.team);
           break;
       }
     });
@@ -267,12 +269,27 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
 
   setTeamFilter(team: string): void {
     this.teamFilter = team;
+    void this.fetchAndSendTeamMembers(team);
     this.sendState({ teamFilter: team });
+  }
+
+  private async fetchAndSendTeamMembers(team: string): Promise<void> {
+    if (!team) {
+      this.teamFilterMembers = [];
+      this.sendState({ teamFilterMembers: [] });
+      return;
+    }
+    const repo = vscode.workspace.getConfiguration('kibana-pr-reviewer').get<string>('repo', 'elastic/kibana');
+    const org = repo.split('/')[0];
+    const members = await this.githubService.getTeamMemberLogins(org, team);
+    this.teamFilterMembers = members;
+    this.sendState({ teamFilterMembers: members });
   }
 
   setPR(pr: GhPullRequest): void {
     this.currentPr = pr;
     this.activeTab = 'reviewing';
+
     if (this.view) {
       this.sendState();
       this.view.show(true);
@@ -374,11 +391,16 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
     void this.precomputeOwnedPaths(files.map((f) => f.path));
   }
 
+  // Token used to discard results from a superseded ownership computation.
+  private ownedPathsToken: symbol = Symbol();
+
   private async precomputeOwnedPaths(paths: string[]): Promise<void> {
+    const token = Symbol();
+    this.ownedPathsToken = token;
     try {
       const ownedPaths = await this.codeOwnersService.getOwnedFiles(paths);
-      // Guard: only update if the file list hasn't been replaced by another checkout.
-      if (this.cfFiles.length > 0 && this.cfFiles[0].path === paths[0]) {
+      // Guard: discard if a newer computation has been started since this one.
+      if (this.ownedPathsToken === token) {
         this.cfOwnedByMeFilter = new Set(ownedPaths);
         this.sendState({ cfOwnedByMePaths: ownedPaths });
       }
@@ -465,6 +487,12 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
         this.currentPr = detail;
         this.discussionComments = comments;
         this.sendState({ currentPr: detail, discussionComments: comments });
+
+        // Compute ownership for the preview file list so the bar appears even
+        // before checkout. Skip if already computed (e.g. branch is checked out).
+        if (detail.files && detail.files.length > 0 && this.cfOwnedByMeFilter === null) {
+          void this.precomputeOwnedPaths(detail.files.map((f) => f.path));
+        }
       }
     } catch (err) {
       log(`fetchAndUpdateDetail #${prNumber}: ${err instanceof Error ? err.message : String(err)}`);
@@ -511,6 +539,7 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
       needsReviewFilterActive: this.needsReviewFilterActive,
       userTeams: this.userTeams,
       teamFilter: this.teamFilter,
+      teamFilterMembers: this.teamFilterMembers,
       activeTab: this.activeTab,
       currentPr: this.currentPr ?? null,
       discussionComments: this.discussionComments,

@@ -3,8 +3,9 @@ import { postMessage } from '../vscode';
 import { ageLabel, renderMarkdown, extractBuildkiteSummary, type BuildkiteSummaryItem } from '../utils';
 import { FilesSection } from './FilesSection';
 import { DiscussionSection } from './DiscussionSection';
-import type { AppState, GhPullRequest, TeamReviewInfo } from '../types';
+import type { AppState, GhPullRequest, GhPrFile, TeamReviewInfo } from '../types';
 import { ActionSection } from './ActionSection';
+import { Spinner } from './Spinner';
 
 type ReviewingPaneProps = Pick<
   AppState,
@@ -52,7 +53,7 @@ export function ReviewingPane({ cfFiles, checkoutBusy, checkoutStage, esStatus, 
   return (
     <div className="reviewing-content">
       <div id="pr-header" className="section">
-        <PrHeader pr={currentPr} ciBuilds={ciBuilds} checkoutBusy={checkoutBusy} checkoutStage={checkoutStage} esStatus={esStatus} kibanaStatus={kibanaStatus} checkedOutPrNumber={checkedOutPrNumber} />
+        <PrHeader pr={currentPr} ciBuilds={ciBuilds} ciBuildsLoading={discussionComments.length === 0} checkoutBusy={checkoutBusy} checkoutStage={checkoutStage} esStatus={esStatus} kibanaStatus={kibanaStatus} checkedOutPrNumber={checkedOutPrNumber} cfFiles={cfFiles} cfOwnedByMePaths={cfOwnedByMePaths} />
       </div>
       <div className="section">
         <div
@@ -94,7 +95,10 @@ export function ReviewingPane({ cfFiles, checkoutBusy, checkoutStage, esStatus, 
 function PrHeader({
   pr,
   ciBuilds,
-}: { pr: GhPullRequest; ciBuilds: BuildkiteSummaryItem[] } & Pick<ReviewingPaneProps, 'checkoutBusy' | 'checkoutStage' | 'esStatus' | 'kibanaStatus' | 'checkedOutPrNumber'>) {
+  ciBuildsLoading,
+  cfFiles,
+  cfOwnedByMePaths,
+}: { pr: GhPullRequest; ciBuilds: BuildkiteSummaryItem[]; ciBuildsLoading: boolean } & Pick<ReviewingPaneProps, 'checkoutBusy' | 'checkoutStage' | 'esStatus' | 'kibanaStatus' | 'checkedOutPrNumber' | 'cfFiles' | 'cfOwnedByMePaths'>) {
   return (
     <>
       <h2 className="pr-desc-title">
@@ -112,19 +116,68 @@ function PrHeader({
           <code>{pr.headRefName}</code>
         </div>
 
-          <div className="info-row">
-            <span className="label">Build</span>
-            {ciBuilds.map((b) => (
-            <span className="ci-status" key={b.pipelineName}>
-              <span className={`bk-icon ${b.cls}`}>{b.icon}</span>{' '}
-              <a href={b.url} className="bk-link">#{b.buildNumber}</a>{' '}
-            </span>
-            ))}
-          </div>
+        <div className="info-row">
+          <span className="label">Build</span>
+          {ciBuildsLoading ? (
+            <Spinner />
+          ) : ciBuilds.length > 0 ? (
+            ciBuilds.map((b) => (
+              <span className="ci-status" key={b.pipelineName}>
+                <span className={`bk-icon ${b.cls}`}>{b.icon}</span>{' '}
+                <a href={b.url} className="bk-link">#{b.buildNumber}</a>{' '}
+              </span>
+            ))
+          ) : (
+            <span className="info-empty">—</span>
+          )}
+        </div>
 
+        <FileOwnershipRow cfFiles={cfFiles} cfOwnedByMePaths={cfOwnedByMePaths} previewFiles={pr.files} />
         <TeamsTable pr={pr} />
       </div>
     </>
+  );
+}
+
+function FileOwnershipRow({ cfFiles, cfOwnedByMePaths, previewFiles }: Pick<ReviewingPaneProps, 'cfFiles' | 'cfOwnedByMePaths'> & { previewFiles?: GhPrFile[] }) {
+  // Prefer the live checkout file list; fall back to the PR detail preview list.
+  const files = cfFiles.length > 0 ? cfFiles : (previewFiles ?? []);
+
+  // Ownership (and possibly files) still loading — keep the row visible with a spinner
+  // so the label is always present and there is no layout jump when data arrives.
+  if (cfOwnedByMePaths === null) {
+    return (
+      <div className="info-row">
+        <span className="label">Files</span>
+        <Spinner />
+      </div>
+    );
+  }
+
+  // Everything loaded but this PR genuinely has no files — hide the row.
+  if (files.length === 0) return null;
+
+  const ownedSet = new Set(cfOwnedByMePaths);
+  const mine = files.filter((f) => ownedSet.has(f.path)).length;
+  const other = files.length - mine;
+  const total = files.length;
+  const minePct = total > 0 ? (mine / total) * 100 : 0;
+
+  return (
+    <div className="info-row">
+      <span className="label">Files</span>
+      <div className="files-ownership">
+        <div className="files-ownership-bar" title={`${mine} owned by my team, ${other} owned by other teams`}>
+          <div className="files-ownership-mine" style={{ width: `${minePct}%` }} />
+          <div className="files-ownership-other" style={{ width: `${100 - minePct}%` }} />
+        </div>
+        <span className="files-ownership-counts">
+          <span className="files-ownership-mine-label">{mine} mine</span>
+          {' · '}
+          <span className="files-ownership-other-label">{other} other</span>
+        </span>
+      </div>
+    </div>
   );
 }
 

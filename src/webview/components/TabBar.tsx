@@ -1,9 +1,10 @@
+import type { ReactNode } from 'react';
 import { postMessage } from '../vscode';
 
 interface Props {
   activeTab: 'queue' | 'reviewing';
-  queueLabel: string;
-  reviewingLabel: string;
+  queueLabel: ReactNode;
+  reviewingLabel: ReactNode;
 }
 
 export function TabBar({ activeTab, queueLabel, reviewingLabel }: Props) {

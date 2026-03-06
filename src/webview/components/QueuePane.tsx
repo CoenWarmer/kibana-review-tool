@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
 import { postMessage } from '../vscode';
-import { ageLabel, reviewDecisionLabel, isReviewInProgress } from '../utils';
+import { ageLabel, isReviewInProgress } from '../utils';
 import type { GhPullRequest } from '../types';
+import { Spinner } from './Spinner';
 
 interface Props {
   allPrs: GhPullRequest[];
@@ -11,11 +12,40 @@ interface Props {
   selectedPrNumber: number | null;
   userTeams: string[];
   teamFilter: string;
+  /** Member logins for the selected team; empty array when no team selected. */
+  teamFilterMembers: string[];
 }
 
 type Bucket = 'unreviewed' | 'in-review' | 'approved';
 
-function classifyPr(pr: GhPullRequest): Bucket {
+/**
+ * Classify a PR into a bucket.
+ *
+ * When a team is selected and its member logins are known, the classification
+ * is scoped to that team:
+ *  - "In review"  — at least one team member has a non-pending review, OR the PR
+ *                   is assigned to a team member.
+ *  - "Unreviewed" — no team member has reviewed or is assigned yet.
+ *
+ * Without a team filter (or before members are fetched) the generic
+ * isReviewInProgress heuristic is used as a fallback.
+ */
+function classifyPr(pr: GhPullRequest, teamMembers: string[]): Bucket {
+  if (teamMembers.length > 0) {
+    // Team-scoped classification: bucket is determined solely by what members of
+    // the selected team have done — the aggregate reviewDecision is irrelevant
+    // because other teams may have approved while this team hasn't reviewed yet.
+    const memberSet = new Set(teamMembers);
+    const teamReviews = (pr.latestReviews ?? []).filter(
+      (r) => r.state !== 'PENDING' && memberSet.has(r.author.login)
+    );
+    if (teamReviews.some((r) => r.state === 'APPROVED')) return 'approved';
+    const hasTeamAssignee = (pr.assignees ?? []).some((a) => memberSet.has(a.login));
+    if (teamReviews.length > 0 || hasTeamAssignee) return 'in-review';
+    return 'unreviewed';
+  }
+
+  // Fallback: generic heuristic (no team selected, or members not yet fetched)
   if (pr.reviewDecision === 'APPROVED') return 'approved';
   if (isReviewInProgress(pr) || pr.reviewDecision === 'CHANGES_REQUESTED') return 'in-review';
   return 'unreviewed';
@@ -49,7 +79,7 @@ function saveSeen(seen: Set<number>): void {
   }
 }
 
-export function QueuePane({ allPrs, isLoading, errorMessage, needsReviewFilterActive, selectedPrNumber, userTeams, teamFilter }: Props) {
+export function QueuePane({ allPrs, isLoading, errorMessage, needsReviewFilterActive: _needsReviewFilterActive, selectedPrNumber, userTeams, teamFilter, teamFilterMembers }: Props) {
   const [search, setSearch] = useState('');
   const [seen, setSeen] = useState<Set<number>>(() => loadSeen());
   // Use a ref so the mark-seen callback always has the latest set without a stale closure.
@@ -84,21 +114,20 @@ export function QueuePane({ allPrs, isLoading, errorMessage, needsReviewFilterAc
 
   const visible = allPrs
     .filter((pr) => !pr.isDraft)
-    .filter((pr) => !needsReviewFilterActive || classifyPr(pr) === 'unreviewed')
     .filter(matchesTeam);
+
+  // Strip the "@org/" prefix for a compact label, e.g. "@elastic/obs-onboarding-team" → "obs-onboarding-team"
+  const teamLabel = teamFilter ? teamFilter.replace(/^@[^/]+\//, '') : null;
 
   const total = visible.length;
   const buckets = BUCKETS.map(({ key, label }) => ({
     key,
-    label,
-    prs: visible.filter((pr) => classifyPr(pr) === key && matchesSearch(pr)).sort(byNewest),
+    label: teamLabel ? `${label} by ${teamLabel}` : label,
+    prs: visible.filter((pr) => classifyPr(pr, teamFilterMembers) === key && matchesSearch(pr)).sort(byNewest),
   }));
   const totalFiltered = buckets.reduce((n, b) => n + b.prs.length, 0);
 
-  if (isLoading) {
-    return <div className="status loading"><span className="spin">⟳</span> Loading PRs…</div>;
-  }
-  if (errorMessage) {
+  if (errorMessage && allPrs.length === 0) {
     return <div className="status error"><div>✕</div><div>{errorMessage}</div></div>;
   }
 
@@ -117,33 +146,26 @@ export function QueuePane({ allPrs, isLoading, errorMessage, needsReviewFilterAc
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <button
-          className={`filter-btn${needsReviewFilterActive ? ' active' : ''}`}
-          title={needsReviewFilterActive ? 'Click to show all PRs' : 'Click to show only PRs that need a review'}
-          onClick={() => postMessage({ type: 'toggleFilter' })}
-        >
-          {needsReviewFilterActive ? '⊘ Unreviewed only' : '⊙ All PRs'}
-        </button>
+        {userTeams.length > 1 && (
+          <div className="team-filter-bar">
+            <select
+              className="team-filter-select"
+              value={teamFilter}
+              onChange={(e) => postMessage({ type: 'setTeamFilter', team: e.target.value })}
+            >
+              <option value="">All teams</option>
+              {userTeams.map((t) => (
+                <option key={t} value={t}>{t.replace(/^@[^/]+\//, '')}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
-      {userTeams.length > 1 && (
-        <div className="team-filter-bar">
-          <select
-            className="team-filter-select"
-            value={teamFilter}
-            onChange={(e) => postMessage({ type: 'setTeamFilter', team: e.target.value })}
-          >
-            <option value="">All teams</option>
-            {userTeams.map((t) => (
-              <option key={t} value={t}>{t.replace(/^@[^/]+\//, '')}</option>
-            ))}
-          </select>
-        </div>
-      )}
 
-      {totalFiltered === 0 ? (
-        <div className="status empty">
-          {needsReviewFilterActive ? 'No unreviewed PRs' : 'No open PRs for your teams'}
-        </div>
+      {isLoading && allPrs.length === 0 ? (
+        <div className="status loading"><Spinner className="spinner-mr" /> Loading PRs…</div>
+      ) : totalFiltered === 0 ? (
+        <div className="status empty">No open PRs for your teams</div>
       ) : (
         <div className="pr-list">
           {buckets.map(({ key, label, prs }) =>
@@ -166,6 +188,7 @@ export function QueuePane({ allPrs, isLoading, errorMessage, needsReviewFilterAc
                     selected={pr.number === selectedPrNumber}
                     isSeen={seen.has(pr.number)}
                     onSeen={markSeen}
+                    teamFilterMembers={teamFilterMembers}
                   />
                 ))}
               </div>
@@ -177,14 +200,32 @@ export function QueuePane({ allPrs, isLoading, errorMessage, needsReviewFilterAc
   );
 }
 
-function PrCard({ pr, selected, isSeen, onSeen }: {
+const STATE_ICON: Record<string, string> = {
+  APPROVED: '✓',
+  CHANGES_REQUESTED: '✗',
+  COMMENTED: '⚡',
+  DISMISSED: '⊘',
+};
+
+function PrCard({ pr, selected, isSeen, onSeen, teamFilterMembers }: {
   pr: GhPullRequest;
   selected: boolean;
   isSeen: boolean;
   onSeen: (n: number) => void;
+  teamFilterMembers: string[];
 }) {
-  const rdClass = `rd-${(pr.reviewDecision || 'none').toLowerCase()}`;
-  const inProgress = isReviewInProgress(pr);
+  const memberSet = new Set(teamFilterMembers);
+
+  // Reviews submitted by team members (excluding PENDING)
+  const teamReviews = teamFilterMembers.length > 0
+    ? (pr.latestReviews ?? []).filter((r) => r.state !== 'PENDING' && memberSet.has(r.author.login))
+    : [];
+
+  // Team members assigned but not yet in latestReviews
+  const reviewerLogins = new Set(teamReviews.map((r) => r.author.login));
+  const teamAssignees = teamFilterMembers.length > 0
+    ? (pr.assignees ?? []).filter((a) => memberSet.has(a.login) && !reviewerLogins.has(a.login))
+    : [];
 
   return (
     <div
@@ -196,9 +237,23 @@ function PrCard({ pr, selected, isSeen, onSeen }: {
       </div>
       <div className="pr-bottom-row">
         <span className="age">{ageLabel(pr.createdAt)} - @{pr.author.login}</span>
-        {inProgress && <span className="in-progress-badge">⚡ In review</span>}
-        {!inProgress && <span className={`rd ${rdClass}`}>{reviewDecisionLabel(pr.reviewDecision)}</span>}
       </div>
+      {(teamReviews.length > 0 || teamAssignees.length > 0) && (
+        <div className="pr-team-reviewers">
+          {teamReviews.map((r) => (
+            <span key={r.author.login} className={`pr-team-reviewer state-${r.state.toLowerCase()}`}>
+              <span className="pr-reviewer-icon">{STATE_ICON[r.state] ?? '·'}</span>
+              {r.author.login}
+            </span>
+          ))}
+          {teamAssignees.map((a) => (
+            <span key={a.login} className="pr-team-reviewer state-assigned">
+              <span className="pr-reviewer-icon">→</span>
+              {a.login}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
