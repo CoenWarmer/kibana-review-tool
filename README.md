@@ -2,7 +2,7 @@
 
 A VSCode/Cursor extension for Kibana engineers to review pull requests efficiently.
 
-<img width="1140" height="759" alt="Screenshot 2026-03-05 at 19 12 41" src="https://github.com/user-attachments/assets/cdb2ef0a-bd44-41b3-ae84-60e7d89dbdb6" />
+<img alt="Screenshot 2026-03-05 at 19 12 41" src="https://github.com/user-attachments/assets/cdb2ef0a-bd44-41b3-ae84-60e7d89dbdb6" />
 
 ## Why?
 
