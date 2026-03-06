@@ -357,6 +357,7 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
     this.cfActiveFile = null;
     this.cfIsLoading = false;
     this.cfErrorMessage = '';
+    this.cfOwnedByMeFilter = null; // reset on new file set
     this.activeTab = 'reviewing';
     this.sendState({
       cfFiles: files,
@@ -364,9 +365,26 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
       cfActiveFile: null,
       cfIsLoading: false,
       cfErrorMessage: '',
+      cfOwnedByMePaths: null,
       activeTab: 'reviewing',
     });
     this._onDidSetFiles.fire({ prNumber, baseCommit });
+
+    // Precompute owned paths in the background so the filter toggle is instant.
+    void this.precomputeOwnedPaths(files.map((f) => f.path));
+  }
+
+  private async precomputeOwnedPaths(paths: string[]): Promise<void> {
+    try {
+      const ownedPaths = await this.codeOwnersService.getOwnedFiles(paths);
+      // Guard: only update if the file list hasn't been replaced by another checkout.
+      if (this.cfFiles.length > 0 && this.cfFiles[0].path === paths[0]) {
+        this.cfOwnedByMeFilter = new Set(ownedPaths);
+        this.sendState({ cfOwnedByMePaths: ownedPaths });
+      }
+    } catch {
+      // ignore — filter button will simply remain disabled
+    }
   }
 
   setLoading(_prNumber: number): void {

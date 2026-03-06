@@ -1,0 +1,17 @@
+# Source & tooling — not needed at runtime
+src/
+.vscode/
+.github/
+node_modules/
+
+# Config files
+tsconfig.json
+esbuild.js
+.eslintrc*
+.prettierrc*
+.prettierignore
+.gitignore
+*.vsix
+
+# Source maps (remove these lines if you want maps in the package)
+dist/*.map

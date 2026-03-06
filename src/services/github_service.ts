@@ -30,6 +30,7 @@ export interface GhPullRequest {
   number: number;
   title: string;
   body: string;
+  isDraft: boolean;
   additions: number;
   deletions: number;
   createdAt: string;
@@ -54,11 +55,14 @@ export interface GhPullRequest {
  * Returns true if there is evidence that someone *other than the PR author*
  * has already started reviewing this PR — assigned, or submitted any review activity.
  */
+const BOT_LOGINS = new Set(['coderabbitai', 'coderabbitai[bot]', 'elasticmachine']);
+
 export function isReviewInProgress(pr: GhPullRequest): boolean {
   const authorLogin = pr.author.login;
+  const isHuman = (login: string) => login !== authorLogin && !BOT_LOGINS.has(login);
   // Only count assignees who are not the PR author (authors often self-assign)
-  if (pr.assignees?.some((a) => a.login !== authorLogin)) return true;
-  if (pr.latestReviews.some((r) => r.state !== 'PENDING' && r.author.login !== authorLogin)) return true;
+  if (pr.assignees?.some((a) => isHuman(a.login))) return true;
+  if (pr.latestReviews.some((r) => r.state !== 'PENDING' && isHuman(r.author.login))) return true;
   return false;
 }
 
@@ -194,7 +198,7 @@ export class GitHubService {
     }
 
     const JSON_FIELDS =
-      'number,title,body,additions,deletions,createdAt,headRefName,baseRefName,reviewRequests,reviewDecision,author,url,latestReviews,assignees,comments';
+      'number,title,body,isDraft,additions,deletions,createdAt,headRefName,baseRefName,reviewRequests,reviewDecision,author,url,latestReviews,assignees,comments';
 
     // One query per team — failures are isolated and logged
     const perTeamResults = await Promise.all(
@@ -278,7 +282,7 @@ export class GitHubService {
         'pr', 'view', String(prNumber),
         '--repo', this.repo,
         '--json',
-        'number,title,body,additions,deletions,createdAt,headRefName,baseRefName,reviewRequests,reviewDecision,author,url,files,latestReviews',
+        'number,title,body,isDraft,additions,deletions,createdAt,headRefName,baseRefName,reviewRequests,reviewDecision,author,url,files,latestReviews',
       ]),
       // Fetch without --jq / --paginate so there are no format or version surprises;
       // parse team slugs from the raw JSON in TypeScript instead.
@@ -457,7 +461,7 @@ export class GitHubService {
    */
   async getPRForCurrentBranch(cwd: string): Promise<GhPullRequest | null> {
     const JSON_FIELDS =
-      'number,title,body,additions,deletions,createdAt,headRefName,baseRefName,reviewRequests,reviewDecision,author,url,latestReviews,assignees,comments';
+      'number,title,body,isDraft,additions,deletions,createdAt,headRefName,baseRefName,reviewRequests,reviewDecision,author,url,latestReviews,assignees,comments';
     log(`[getPRForCurrentBranch] cwd=${cwd}`);
 
     // gh pr view requires an explicit argument when --repo is set.

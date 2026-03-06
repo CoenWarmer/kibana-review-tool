@@ -71,6 +71,8 @@ export function ReviewingPane({ cfFiles, checkoutBusy, checkoutStage, esStatus, 
           suggestedOrder={cfSuggestedOrder}
           orderMode={cfOrderMode}
           isOrderLoading={cfIsOrderLoading}
+          previewFiles={currentPr.files}
+          isCheckedOut={currentPr.number === checkedOutPrNumber}
         />
       </div>
       <div className="section">

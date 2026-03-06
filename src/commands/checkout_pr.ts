@@ -92,14 +92,12 @@ export async function checkoutPR(
       'Discard changes',
       'Cancel'
     );
-    if (choice == 'Discard changes') {
-      log('[checkout] Discarding uncommitted changes (git reset --hard && git clean -fd)…');
-      await execFileAsync('git', ['reset', '--hard'], { cwd });
-      await execFileAsync('git', ['clean', '-f', '-d'], { cwd });
-      log('[checkout] Working tree cleaned.');
-    } 
+    if (choice !== 'Discard changes') return;
 
-    return;
+    log('[checkout] Discarding uncommitted changes (git reset --hard && git clean -fd)…');
+    await execFileAsync('git', ['reset', '--hard'], { cwd });
+    await execFileAsync('git', ['clean', '-f', '-d'], { cwd });
+    log('[checkout] Working tree cleaned.');
   }
 
   const reportStage = (stage: string | null) => {
@@ -111,22 +109,17 @@ export async function checkoutPR(
   ctx.changedFilesProvider.setLoading(prNumber);
   reportStage('Fetching branch…');
 
-  await vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: `Checking out PR #${prNumber}…`,
-      cancellable: false,
-    },
-    async (progress) => {
+  void (async () => {
+    try {
+      log(`Fetching branch for PR #${prNumber}…`);
       try {
-        progress.report({ message: 'Fetching branch…' });
         await runCheckout(prNumber, repo, cwd);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
 
         if (isRefConflictError(msg)) {
           // Try remote prune first (handles stale remote-tracking refs)
-          progress.report({ message: 'Pruning stale remote refs…' });
+          log('Pruning stale remote refs…');
           await pruneRemotes(cwd);
 
           // Also check for a conflicting LOCAL branch (the most common cause).
@@ -147,34 +140,36 @@ export async function checkoutPR(
           }
 
           log('Retrying checkout…');
-          progress.report({ message: 'Retrying checkout…' });
           await runCheckout(prNumber, repo, cwd);
         } else {
           throw err;
         }
       }
 
-      log(`PR #${prNumber} checked out successfully — running yarn kbn bootstrap`);
-      progress.report({ message: 'Bootstrapping…' });
+      log(`PR #${prNumber} checked out successfully — loading PR data and bootstrapping`);
+
+      // Load PR data immediately after checkout so the file list unblocks
+      // without waiting for the (slow) bootstrap to complete.
+      reportStage(null); // clear the button status
+      await loadPRData(prNumber, ctx);
+      void vscode.commands.executeCommand('kibana-pr-reviewer.prPanel.focus');
+
+      // Bootstrap runs after the UI is already updated.
       reportStage('Bootstrapping…');
       await runBootstrap(cwd);
       log('Bootstrap complete');
-
-      reportStage(null); // clear the button status
-      await loadPRData(prNumber, ctx, progress);
-
-      void vscode.commands.executeCommand('kibana-pr-reviewer.prPanel.focus');
+      reportStage(null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log(`Checkout failed: ${msg}`);
+      reportStage(null); // restore button
+      ctx.changedFilesProvider.setError(`Checkout failed: ${msg}`);
+      ctx.statusBarItem.text = `$(error) PR #${prNumber} checkout failed`;
+      void vscode.window.showErrorMessage(
+        `Kibana PR Reviewer: Could not checkout PR #${prNumber}. ${msg}`
+      );
     }
-  ).then(undefined, (err: unknown) => {
-    const msg = err instanceof Error ? err.message : String(err);
-    log(`Checkout failed: ${msg}`);
-    reportStage(null); // restore button
-    ctx.changedFilesProvider.setError(`Checkout failed: ${msg}`);
-    ctx.statusBarItem.text = `$(error) PR #${prNumber} checkout failed`;
-    void vscode.window.showErrorMessage(
-      `Kibana PR Reviewer: Could not checkout PR #${prNumber}. ${msg}`
-    );
-  });
+  })();
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

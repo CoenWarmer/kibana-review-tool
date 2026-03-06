@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ReactElement } from 'react';
 import { postMessage } from '../vscode';
 import { cfBuildTree, cfCompactFolders, cfStatusIcon, normalizeFileStatus } from '../utils';
 import type { CfTreeChild } from '../utils';
-import type { OrderedFile, ReviewOrderSuggestion, OrderMode } from '../types';
+import type { GhPrFile, OrderedFile, ReviewOrderSuggestion, OrderMode } from '../types';
 
 interface Props {
   files: OrderedFile[];
@@ -15,20 +15,60 @@ interface Props {
   suggestedOrder: ReviewOrderSuggestion | null;
   orderMode: OrderMode;
   isOrderLoading: boolean;
+  /** Files from the PR detail API — shown as a locked preview when not checked out. */
+  previewFiles?: GhPrFile[];
+  isCheckedOut: boolean;
 }
 
 export function FilesSection({
   files, activeFile, reviewedPaths, ownedByMePaths,
   isLoading, errorMessage, suggestedOrder, orderMode, isOrderLoading,
+  previewFiles, isCheckedOut,
 }: Props) {
   const [search, setSearch] = useState('');
+  const [showOwnedByMe, setShowOwnedByMe] = useState(false);
   const reviewedSet = new Set(reviewedPaths);
 
-  const total = files.length;
-  const visible = ownedByMePaths
+  // Reset the filter whenever the owned-paths list is cleared (new checkout).
+  useEffect(() => {
+    if (ownedByMePaths === null) setShowOwnedByMe(false);
+  }, [ownedByMePaths]);
+
+  const total = files.length || (previewFiles?.length ?? 0);
+  const visible = showOwnedByMe && ownedByMePaths
     ? files.filter((f) => ownedByMePaths.includes(f.path))
     : files;
   const hasSuggestion = suggestedOrder !== null;
+
+  // When not checked out but we have preview files, show them under an overlay.
+  if (!isCheckedOut && files.length === 0 && previewFiles && previewFiles.length > 0) {
+    return (
+      <>
+        <div className="section-header">
+          <span className="section-title">Changed Files ({previewFiles.length})</span>
+        </div>
+        <div className="cf-file-list-wrapper cf-locked">
+          <div className="cf-file-list">
+            {previewFiles.map((f) => {
+              const fileName = f.path.split('/').pop() ?? f.path;
+              return (
+                <div key={f.path} className="file-row">
+                  <span className="cf-file-name" title={f.path}>{fileName}</span>
+                  <span className="cf-stats">
+                    {f.additions > 0 && <span className="cf-adds">+{f.additions}</span>}
+                    {f.deletions > 0 && <span className="cf-dels">-{f.deletions}</span>}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="cf-locked-overlay">
+            <span className="cf-locked-message">Check out branch to see files in IDE</span>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   let body: React.ReactNode;
   if (isLoading) {
@@ -82,9 +122,16 @@ export function FilesSection({
               onChange={(e) => setSearch(e.target.value)}
             />
             <button
-              className={`cf-filter-btn${ownedByMePaths ? ' active' : ''}`}
-              title={ownedByMePaths ? 'Show all files' : 'Show only files I own'}
-              onClick={() => postMessage({ type: 'toggleOwnedByMe' })}
+              className={`cf-filter-btn${showOwnedByMe ? ' active' : ''}`}
+              title={
+                ownedByMePaths === null
+                  ? 'Computing owned files…'
+                  : showOwnedByMe
+                  ? 'Show all files'
+                  : 'Show only files I own'
+              }
+              disabled={ownedByMePaths === null}
+              onClick={() => setShowOwnedByMe((v) => !v)}
             >
               👤 Owned by me
             </button>

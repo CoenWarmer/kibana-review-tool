@@ -94,6 +94,12 @@ export function App() {
     return () => window.removeEventListener('message', handler);
   }, []);
 
+  // Reset scroll position when switching tabs
+  useEffect(() => {
+    const paneId = state.activeTab === 'queue' ? 'pane-queue' : 'pane-reviewing';
+    document.getElementById(paneId)?.scrollTo({ top: 0 });
+  }, [state.activeTab]);
+
   const queueLabel = state.isLoading
     ? 'Review Queue'
     : `Review Queue (${state.allPrs.length})`;

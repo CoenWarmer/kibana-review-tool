@@ -2,8 +2,8 @@
   "name": "kibana-pr-reviewer",
   "displayName": "Kibana PR Reviewer",
   "description": "Review Kibana pull requests with team filtering, smart file ordering, and inline diffs",
-  "version": "0.1.0",
-  "publisher": "elastic",
+  "version": "0.1.1",
+  "publisher": "cowibewa",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -236,6 +236,7 @@
     "compile": "node esbuild.js",
     "watch": "node esbuild.js --watch",
     "package": "vsce package --no-dependencies",
+    "publish": "vsce publish --no-dependencies",
     "lint": "eslint src --ext ts",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\""

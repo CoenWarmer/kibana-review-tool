@@ -28,9 +28,13 @@ export function reviewDecisionLabel(decision: ReviewDecision): string {
 
 // ─── Is review in progress ───────────────────────────────────────────────────
 
+const BOT_LOGINS = new Set(['coderabbitai', 'coderabbitai[bot]', 'elasticmachine']);
+
 export function isReviewInProgress(pr: GhPullRequest): boolean {
+  const authorLogin = pr.author.login;
+  const isHuman = (login: string) => login !== authorLogin && !BOT_LOGINS.has(login);
   return (pr.latestReviews ?? []).some(
-    (r) => r.state === 'COMMENTED' && r.author.login !== pr.author.login
+    (r) => r.state !== 'PENDING' && isHuman(r.author.login)
   );
 }
 
@@ -204,13 +208,46 @@ export function renderMarkdown(text: string, repoUrl?: string): string {
   );
 
   // Strip remaining HTML comments and GitHub's empty-tag auto-link suppression
+  // (exclude <details> from the empty-tag strip so it isn't removed before we lift it)
   const cleaned = withBk
     .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/<([a-zA-Z]+)[^>]*><\/\1>/g, '');
+    .replace(/<(?!details\b)([a-zA-Z]+)[^>]*><\/\1>/g, '');
+
+  // Lift <details>...</details> blocks before escaping so they render as real
+  // collapsible elements. Their body is recursively rendered as markdown.
+  //
+  // We process innermost-first: the regex only matches a <details> whose content
+  // contains no nested <details> opening tag. Each pass replaces one nesting level
+  // with a placeholder; subsequent passes handle the next level up. This correctly
+  // handles arbitrary nesting depth (e.g. CodeRabbit's nested collapsible sections).
+  const liftedDetails: string[] = [];
+  let withLiftedDetails = cleaned;
+  let detailsFound = true;
+  while (detailsFound) {
+    detailsFound = false;
+    withLiftedDetails = withLiftedDetails.replace(
+      /<details[^>]*>((?:(?!<details)[\s\S])*?)<\/details>/gi,
+      (_, inner: string) => {
+        detailsFound = true;
+        const summaryMatch = inner.match(/^\s*<summary>([\s\S]*?)<\/summary>\s*/i);
+        const summaryText = summaryMatch ? summaryMatch[1].trim() : '';
+        const bodyText = summaryMatch ? inner.slice(summaryMatch[0].length) : inner;
+        const renderedSummary = escHtml(summaryText);
+        // Body may contain placeholders for already-lifted inner blocks — they survive
+        // renderMarkdown untouched and will be resolved during the reverse restore pass.
+        const renderedBody = bodyText.trim() ? renderMarkdown(bodyText, repoUrl) : '';
+        liftedDetails.push(
+          `<details class="md-details"><summary class="md-details-summary">${renderedSummary}</summary>` +
+            `<div class="md-details-body">${renderedBody}</div></details>`
+        );
+        return `\x00DETAILS${liftedDetails.length - 1}\x00`;
+      }
+    );
+  }
 
   // Lift <img> tags out before escaping so their attributes survive intact.
   const liftedImgs: string[] = [];
-  const withLiftedImgs = cleaned.replace(/<img\b([^>]*)>/gi, (_, attrs: string) => {
+  const withLiftedImgs = withLiftedDetails.replace(/<img\b([^>]*)>/gi, (_, attrs: string) => {
     const srcMatch = attrs.match(/\bsrc="([^"]+)"/i);
     const altMatch = attrs.match(/\balt="([^"]*)"/i);
     if (!srcMatch) return '';
@@ -338,7 +375,15 @@ export function renderMarkdown(text: string, repoUrl?: string): string {
   flushPending();
   flushList();
 
-  const body = out.join('\n');
+  let body = out.join('\n');
+
+  // Restore lifted <details> blocks in reverse order: outermost blocks (highest index)
+  // are restored first, which injects inner placeholders into the live body string so
+  // the next iterations can resolve them correctly.
+  for (let i = liftedDetails.length - 1; i >= 0; i--) {
+    body = body.replace(`\x00DETAILS${i}\x00`, liftedDetails[i]);
+  }
+
   return bkWidgets ? body + bkWidgets : body;
 }
 

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { postMessage } from '../vscode';
 import { ageLabel, reviewDecisionLabel, isReviewInProgress } from '../utils';
 import type { GhPullRequest } from '../types';
@@ -30,8 +30,38 @@ const BUCKETS: { key: Bucket; label: string }[] = [
   { key: 'approved',   label: 'Approved' },
 ];
 
+const SEEN_KEY = 'kibana-pr-reviewer.seenPrs';
+
+function loadSeen(): Set<number> {
+  try {
+    const raw = localStorage.getItem(SEEN_KEY);
+    return raw ? new Set(JSON.parse(raw) as number[]) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function saveSeen(seen: Set<number>): void {
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify([...seen]));
+  } catch {
+    // storage quota or unavailable — ignore
+  }
+}
+
 export function QueuePane({ allPrs, isLoading, errorMessage, needsReviewFilterActive, selectedPrNumber, userTeams, teamFilter }: Props) {
   const [search, setSearch] = useState('');
+  const [seen, setSeen] = useState<Set<number>>(() => loadSeen());
+  // Use a ref so the mark-seen callback always has the latest set without a stale closure.
+  const seenRef = useRef(seen);
+  seenRef.current = seen;
+
+  const markSeen = useCallback((prNumber: number) => {
+    const next = new Set(seenRef.current).add(prNumber);
+    saveSeen(next);
+    setSeen(next);
+  }, []);
+
   const [collapsed, setCollapsed] = useState<Record<Bucket, boolean>>({
     'unreviewed': false,
     'in-review': false,
@@ -53,6 +83,7 @@ export function QueuePane({ allPrs, isLoading, errorMessage, needsReviewFilterAc
   };
 
   const visible = allPrs
+    .filter((pr) => !pr.isDraft)
     .filter((pr) => !needsReviewFilterActive || classifyPr(pr) === 'unreviewed')
     .filter(matchesTeam);
 
@@ -129,7 +160,13 @@ export function QueuePane({ allPrs, isLoading, errorMessage, needsReviewFilterAc
                   <span className="pr-bucket-count">{prs.length}</span>
                 </div>
                 {!collapsed[key] && prs.map((pr) => (
-                  <PrCard key={pr.number} pr={pr} selected={pr.number === selectedPrNumber} />
+                  <PrCard
+                    key={pr.number}
+                    pr={pr}
+                    selected={pr.number === selectedPrNumber}
+                    isSeen={seen.has(pr.number)}
+                    onSeen={markSeen}
+                  />
                 ))}
               </div>
             )
@@ -140,14 +177,19 @@ export function QueuePane({ allPrs, isLoading, errorMessage, needsReviewFilterAc
   );
 }
 
-function PrCard({ pr, selected }: { pr: GhPullRequest; selected: boolean }) {
+function PrCard({ pr, selected, isSeen, onSeen }: {
+  pr: GhPullRequest;
+  selected: boolean;
+  isSeen: boolean;
+  onSeen: (n: number) => void;
+}) {
   const rdClass = `rd-${(pr.reviewDecision || 'none').toLowerCase()}`;
   const inProgress = isReviewInProgress(pr);
 
   return (
     <div
-      className={`pr-card${selected ? ' selected' : ''}`}
-      onClick={() => postMessage({ type: 'selectPR', prNumber: pr.number })}
+      className={`pr-card${selected ? ' selected' : ''}${isSeen ? ' seen' : ''}`}
+      onClick={() => { onSeen(pr.number); postMessage({ type: 'selectPR', prNumber: pr.number }); }}
     >
       <div className="pr-title">
         <span className="pr-num">#{pr.number}</span> {pr.title}

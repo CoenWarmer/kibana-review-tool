@@ -19,10 +19,19 @@ export interface TeamReviewInfo {
   reviewer?: { login: string; submittedAt: string };
 }
 
+export interface GhPrFile {
+  path: string;
+  additions: number;
+  deletions: number;
+  status?: string;
+  changeType?: string;
+}
+
 export interface GhPullRequest {
   number: number;
   title: string;
   body: string;
+  isDraft: boolean;
   additions: number;
   deletions: number;
   createdAt: string;
@@ -34,6 +43,8 @@ export interface GhPullRequest {
   url: string;
   latestReviews: GhReview[];
   teamReviewStatuses?: Record<string, TeamReviewInfo>;
+  /** Populated after PR detail is fetched; absent on queue list items. */
+  files?: GhPrFile[];
 }
 
 export interface GhDiscussionComment {
