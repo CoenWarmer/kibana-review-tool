@@ -2,10 +2,12 @@ name: Publish
 
 # Trigger by pushing a version tag, e.g.:
 #   git tag v0.2.0 && git push origin v0.2.0
+# Or trigger manually from the Actions tab.
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 jobs:
   publish:
@@ -37,6 +39,11 @@ jobs:
         run: npm run publish
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Publish to Open VSX Registry
+        run: npx ovsx publish *.vsix --pat "$OVSX_PAT"
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
