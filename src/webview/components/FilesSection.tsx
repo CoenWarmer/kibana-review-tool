@@ -121,7 +121,7 @@ export function FilesSection({
 
   return (
     <>
-      <div id="files-section" className="section-header">
+      <div className="section-header">
         <span className="section-title">Changed Files{total > 0 ? ` (${total})` : ''}</span>
       </div>
       <div className="cf-file-list-wrapper">

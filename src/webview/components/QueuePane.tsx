@@ -9,6 +9,8 @@ interface Props {
   errorMessage: string;
   needsReviewFilterActive: boolean;
   selectedPrNumber: number | null;
+  userTeams: string[];
+  teamFilter: string;
 }
 
 type Bucket = 'unreviewed' | 'in-review' | 'approved';
@@ -28,7 +30,7 @@ const BUCKETS: { key: Bucket; label: string }[] = [
   { key: 'approved',   label: 'Approved' },
 ];
 
-export function QueuePane({ allPrs, isLoading, errorMessage, needsReviewFilterActive, selectedPrNumber }: Props) {
+export function QueuePane({ allPrs, isLoading, errorMessage, needsReviewFilterActive, selectedPrNumber, userTeams, teamFilter }: Props) {
   const [search, setSearch] = useState('');
   const [collapsed, setCollapsed] = useState<Record<Bucket, boolean>>({
     'unreviewed': false,
@@ -43,9 +45,16 @@ export function QueuePane({ allPrs, isLoading, errorMessage, needsReviewFilterAc
   const matchesSearch = (pr: GhPullRequest) =>
     !search || `#${pr.number} ${pr.title} ${pr.author.login}`.toLowerCase().includes(searchLower);
 
-  const visible = needsReviewFilterActive
-    ? allPrs.filter((pr) => classifyPr(pr) === 'unreviewed')
-    : allPrs;
+  const matchesTeam = (pr: GhPullRequest) => {
+    if (!teamFilter) return true;
+    // teamFilter is "@org/slug"; reviewRequests carry the bare slug
+    const bareSlug = teamFilter.replace(/^@[^/]+\//, '');
+    return pr.reviewRequests.some((r) => r.slug === bareSlug || r.name === bareSlug);
+  };
+
+  const visible = allPrs
+    .filter((pr) => !needsReviewFilterActive || classifyPr(pr) === 'unreviewed')
+    .filter(matchesTeam);
 
   const total = visible.length;
   const buckets = BUCKETS.map(({ key, label }) => ({
@@ -66,7 +75,7 @@ export function QueuePane({ allPrs, isLoading, errorMessage, needsReviewFilterAc
     <>
       <div className="toolbar">
         <span className="count">
-          {search ? `${totalFiltered} / ${total}` : `${total}`} PR{total === 1 ? '' : 's'}
+          {search || teamFilter ? `${totalFiltered} / ${total}` : `${total}`} PR{total === 1 ? '' : 's'}
         </span>
         <input
           className="search-input"
@@ -85,6 +94,20 @@ export function QueuePane({ allPrs, isLoading, errorMessage, needsReviewFilterAc
           {needsReviewFilterActive ? '⊘ Unreviewed only' : '⊙ All PRs'}
         </button>
       </div>
+      {userTeams.length > 1 && (
+        <div className="team-filter-bar">
+          <select
+            className="team-filter-select"
+            value={teamFilter}
+            onChange={(e) => postMessage({ type: 'setTeamFilter', team: e.target.value })}
+          >
+            <option value="">All teams</option>
+            {userTeams.map((t) => (
+              <option key={t} value={t}>{t.replace(/^@[^/]+\//, '')}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {totalFiltered === 0 ? (
         <div className="status empty">

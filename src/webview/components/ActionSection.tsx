@@ -25,6 +25,7 @@ export function ActionSection({
   const isCheckedOut = pr.number === checkedOutPrNumber;
   const [selectedScenario, setSelectedScenario] = useState<string>(synthtraceScenarios[0] ?? '');
   const [live, setLive] = useState(false);
+  const [devEnvOpen, setDevEnvOpen] = useState(false);
 
   return (
     <div className="action-rows">
@@ -52,8 +53,15 @@ export function ActionSection({
         >
           &#8635;
         </button>
+        <button
+          className={`dev-env-toggle-btn${devEnvOpen ? ' active' : ''}`}
+          title={devEnvOpen ? 'Hide dev environment' : 'Show dev environment'}
+          onClick={() => setDevEnvOpen((v) => !v)}
+        >
+          ⚡
+        </button>
       </div>
-      <div className="dev-env-row">
+      <div className={`dev-env-row${devEnvOpen ? '' : ' hidden'}`}>
         <button className="server-btn" onClick={() => postMessage({ type: 'startEs' })}>
           <span className={`server-dot ${esStatus}`} />
           <span className="server-label">Elasticsearch</span>
@@ -74,7 +82,7 @@ export function ActionSection({
           ⎋ Open Kibana
         </button>
       </div>
-      <div className="synthtrace-row">
+      <div className={`synthtrace-row${devEnvOpen ? '' : ' hidden'}`}>
         <select
           className="synthtrace-select"
           value={selectedScenario}

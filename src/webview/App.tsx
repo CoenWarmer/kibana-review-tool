@@ -12,6 +12,8 @@ const initialState: AppState = {
   isLoading: true,
   errorMessage: '',
   needsReviewFilterActive: false,
+  userTeams: [],
+  teamFilter: '',
   activeTab: 'queue',
   currentPr: null,
   discussionComments: [],
@@ -114,6 +116,8 @@ export function App() {
           errorMessage={state.errorMessage}
           needsReviewFilterActive={state.needsReviewFilterActive}
           selectedPrNumber={state.currentPr?.number ?? null}
+          userTeams={state.userTeams}
+          teamFilter={state.teamFilter}
         />
       </div>
 

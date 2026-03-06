@@ -74,6 +74,8 @@ export interface AppState {
   isLoading: boolean;
   errorMessage: string;
   needsReviewFilterActive: boolean;
+  userTeams: string[];
+  teamFilter: string;
 
   // Tab
   activeTab: 'queue' | 'reviewing';
@@ -133,4 +135,5 @@ export type InboundMessage =
   | { type: 'startKibana' }
   | { type: 'openKibana' }
   | { type: 'runSynthtrace'; scenario: string; live: boolean }
-  | { type: 'refreshScenarios' };
+  | { type: 'refreshScenarios' }
+  | { type: 'setTeamFilter'; team: string };

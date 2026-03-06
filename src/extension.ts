@@ -180,6 +180,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     terminal.sendText(cmd);
   };
 
+  // ─── Team filter persistence ───────────────────────────────────────────────
+  const TEAM_FILTER_KEY = 'kibana-pr-reviewer.teamFilter';
+  const savedTeamFilter = context.globalState.get<string>(TEAM_FILTER_KEY, '');
+  if (savedTeamFilter) {
+    prPanelProvider.setTeamFilter(savedTeamFilter);
+  }
+  prPanelProvider.onSetTeamFilter = (team) => {
+    void context.globalState.update(TEAM_FILTER_KEY, team);
+  };
+
   // Wire up checkout button in panel → checkout command
   prPanelProvider.onCheckout = (pr) => {
     void vscode.commands.executeCommand('kibana-pr-reviewer.checkoutPR', pr);

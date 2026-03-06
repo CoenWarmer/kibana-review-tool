@@ -51,11 +51,8 @@ export function ReviewingPane({ cfFiles, checkoutBusy, checkoutStage, esStatus, 
 
   return (
     <div className="reviewing-content">
-      <div className="section">
+      <div id="pr-header" className="section">
         <PrHeader pr={currentPr} ciBuilds={ciBuilds} checkoutBusy={checkoutBusy} checkoutStage={checkoutStage} esStatus={esStatus} kibanaStatus={kibanaStatus} checkedOutPrNumber={checkedOutPrNumber} />
-      </div>
-      <div className="section">
-        <ActionSection pr={currentPr} checkoutBusy={checkoutBusy} checkedOutPrNumber={checkedOutPrNumber} checkoutStage={checkoutStage} esStatus={esStatus} kibanaStatus={kibanaStatus} synthtraceScenarios={synthtraceScenarios} postMessage={postMessage} />
       </div>
       <div className="section">
         <div
@@ -63,7 +60,7 @@ export function ReviewingPane({ cfFiles, checkoutBusy, checkoutStage, esStatus, 
           dangerouslySetInnerHTML={{ __html: renderMarkdown(currentPr.body ?? '', repoUrl) }}
         />
       </div>
-      <div className="section">
+      <div id="files-section" className="section">
         <FilesSection
           files={cfFiles}
           activeFile={cfActiveFile}
@@ -84,6 +81,9 @@ export function ReviewingPane({ cfFiles, checkoutBusy, checkoutStage, esStatus, 
           onReviewSubmitted={reviewSubmitted}
           onClearFeedback={onClearFeedback}
         />
+      </div>
+      <div id="action-section" className="section">
+        <ActionSection pr={currentPr} checkoutBusy={checkoutBusy} checkedOutPrNumber={checkedOutPrNumber} checkoutStage={checkoutStage} esStatus={esStatus} kibanaStatus={kibanaStatus} synthtraceScenarios={synthtraceScenarios} postMessage={postMessage} />
       </div>
     </div>
   );

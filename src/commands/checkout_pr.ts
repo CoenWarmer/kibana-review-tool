@@ -83,6 +83,25 @@ export async function checkoutPR(
   const repo = config.get<string>('repo', 'elastic/kibana');
   const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
+  // Guard: warn the user if there are uncommitted changes before we touch git.
+  const dirty = await hasUncommittedChanges(cwd);
+  if (dirty) {
+    const choice = await vscode.window.showWarningMessage(
+      'You have uncommitted changes. Checking out a different PR will discard them.',
+      { modal: true },
+      'Discard changes',
+      'Cancel'
+    );
+    if (choice == 'Discard changes') {
+      log('[checkout] Discarding uncommitted changes (git reset --hard && git clean -fd)…');
+      await execFileAsync('git', ['reset', '--hard'], { cwd });
+      await execFileAsync('git', ['clean', '-f', '-d'], { cwd });
+      log('[checkout] Working tree cleaned.');
+    } 
+
+    return;
+  }
+
   const reportStage = (stage: string | null) => {
     ctx.onCheckoutProgress?.(stage);
   };
@@ -159,6 +178,20 @@ export async function checkoutPR(
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Returns true when `git status --porcelain` reports any tracked or untracked
+ * modifications — i.e. the working tree is not clean.
+ */
+async function hasUncommittedChanges(cwd: string | undefined): Promise<boolean> {
+  try {
+    const { stdout } = await execFileAsync('git', ['status', '--porcelain'], { cwd });
+    return stdout.trim().length > 0;
+  } catch {
+    // If git fails for some reason, don't block the checkout.
+    return false;
+  }
+}
 
 async function runCheckout(
   prNumber: number,

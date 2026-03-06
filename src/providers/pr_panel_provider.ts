@@ -26,7 +26,8 @@ type InboundMessage =
   | { type: 'startKibana' }
   | { type: 'openKibana' }
   | { type: 'runSynthtrace'; scenario: string; live: boolean }
-  | { type: 'refreshScenarios' };
+  | { type: 'refreshScenarios' }
+  | { type: 'setTeamFilter'; team: string };
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
@@ -40,6 +41,8 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
   private isLoading = false;
   private errorMessage = '';
   private needsReviewFilterActive = false;
+  private userTeams: string[] = [];
+  private teamFilter = '';
 
   // Description state
   currentPr?: GhPullRequest;
@@ -96,6 +99,9 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
 
   /** Fired when the user clicks the scenarios settings/refresh button. */
   onRefreshScenarios?: () => void;
+
+  /** Fired when the user selects a team filter. */
+  onSetTeamFilter?: (team: string) => void;
 
   /** Fired when the user clicks "✦ Suggest order". */
   onSuggestOrder?: () => void;
@@ -233,6 +239,11 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
         case 'refreshScenarios':
           this.onRefreshScenarios?.();
           break;
+        case 'setTeamFilter':
+          this.teamFilter = msg.team;
+          this.sendState({ teamFilter: this.teamFilter });
+          this.onSetTeamFilter?.(msg.team);
+          break;
       }
     });
 
@@ -252,6 +263,11 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
   setSynthtraceScenarios(scenarios: string[]): void {
     this.synthtraceScenarios = scenarios;
     this.sendState({ synthtraceScenarios: scenarios });
+  }
+
+  setTeamFilter(team: string): void {
+    this.teamFilter = team;
+    this.sendState({ teamFilter: team });
   }
 
   setPR(pr: GhPullRequest): void {
@@ -302,6 +318,7 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
 
       const userTeams = await this.codeOwnersService.getUserTeams();
       log(`User teams: ${userTeams.length > 0 ? userTeams.join(', ') : '(none)'}`);
+      this.userTeams = userTeams;
 
       if (userTeams.length === 0) {
         this.allPrs = [];
@@ -309,7 +326,7 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
           'No teams detected. Set kibana-pr-reviewer.userTeams in Settings ' +
           '(e.g. ["@elastic/obs-onboarding-team"]).';
         this.isLoading = false;
-        this.sendState({ allPrs: [], errorMessage: this.errorMessage, isLoading: false });
+        this.sendState({ allPrs: [], userTeams: [], errorMessage: this.errorMessage, isLoading: false });
         return;
       }
 
@@ -322,7 +339,7 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
     }
 
     this.isLoading = false;
-    this.sendState({ allPrs: this.allPrs, isLoading: false, errorMessage: this.errorMessage });
+    this.sendState({ allPrs: this.allPrs, userTeams: this.userTeams, isLoading: false, errorMessage: this.errorMessage });
   }
 
   /** Public entry point to re-fetch and re-render the currently displayed PR detail. */
@@ -474,6 +491,8 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
       isLoading: this.isLoading,
       errorMessage: this.errorMessage,
       needsReviewFilterActive: this.needsReviewFilterActive,
+      userTeams: this.userTeams,
+      teamFilter: this.teamFilter,
       activeTab: this.activeTab,
       currentPr: this.currentPr ?? null,
       discussionComments: this.discussionComments,
