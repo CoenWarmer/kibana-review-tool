@@ -53,6 +53,35 @@ body {
 .pane { display: none; flex: 1; overflow-y: auto; }
 .pane.active { display: flex; flex-direction: column; }
 
+/* ── Wrong-repo placeholder ── */
+.wrong-repo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 32px 24px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+}
+.wrong-repo-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+  margin: 0 0 8px;
+}
+.wrong-repo-body {
+  font-size: 12px;
+  margin: 0;
+  line-height: 1.5;
+}
+.wrong-repo-body code {
+  background: var(--vscode-textCodeBlock-background);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 11px;
+}
+
 /* ── Queue pane ── */
 .toolbar {
   display: flex;
@@ -444,21 +473,40 @@ hr { border: none; border-top: 1px solid var(--vscode-widget-border, #444); marg
 .pr-body p  { margin: 4px 0 8px; }
 .pr-body ul, .pr-body ol { margin: 4px 0 16px; padding-left: 20px; }
 .pr-body li { margin: 2px 0; }
+/* react-markdown task list checkboxes */
+.pr-body li input[type='checkbox'] { margin-right: 5px; cursor: default; pointer-events: none; }
+.pr-body del { opacity: 0.6; }
 .pr-body pre {
   background: var(--vscode-textBlockQuote-background);
   border-radius: 4px; padding: 8px 10px; overflow-x: auto; font-size: 11px; margin: 6px 0;
 }
+.pr-body code {
+  background: var(--vscode-textBlockQuote-background);
+  border-radius: 3px; padding: 1px 5px; font-size: 11px;
+}
+.pr-body pre code { background: none; padding: 0; border-radius: 0; }
 .pr-body blockquote {
   border-left: 3px solid var(--vscode-textBlockQuote-border, #555);
   margin: 4px 0; padding: 2px 10px; color: var(--vscode-descriptionForeground);
 }
 .pr-body a { color: var(--vscode-textLink-foreground); }
+.pr-body a:hover { text-decoration: underline; }
 .pr-body video, .pr-body img {
-  max-width: 100%; height: auto; border-radius: 4px; display: block; margin: 16px 0;
+  max-width: 100%; height: auto; border-radius: 4px; display: block; margin: 8px 0;
 }
 .pr-body .media-wrap { margin: 8px 0; }
+.pr-body table {
+  border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 12px;
+}
+.pr-body th, .pr-body td {
+  border: 1px solid var(--vscode-widget-border, #444); padding: 4px 10px; text-align: left;
+}
+.pr-body th {
+  background: var(--vscode-textBlockQuote-background); font-weight: 600;
+}
+.pr-body tr:nth-child(even) { background: rgba(255,255,255,0.03); }
 
-/* <details> / <summary> collapsible blocks */
+/* <details> / <summary> collapsible blocks (pre-rendered by MarkdownBody preprocessing) */
 .md-details {
   border: 1px solid var(--vscode-widget-border, #444);
   border-radius: 4px;
@@ -490,16 +538,9 @@ hr { border: none; border-top: 1px solid var(--vscode-widget-border, #444); marg
   padding: 8px 12px;
   font-size: 12px;
 }
-.pr-body table {
-  border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 12px;
-}
-.pr-body th, .pr-body td {
-  border: 1px solid var(--vscode-widget-border, #444); padding: 4px 10px; text-align: left;
-}
-.pr-body th {
-  background: var(--vscode-textBlockQuote-background); font-weight: 600;
-}
-.pr-body tr:nth-child(even) { background: rgba(255,255,255,0.03); }
+
+/* Buildkite widgets wrapper (rendered as React components below the markdown) */
+.bk-widgets { margin-top: 8px; }
 
 /* ── Comment box ── */
 .comment-box { padding: 0 0 14px; }
@@ -560,6 +601,8 @@ hr { border: none; border-top: 1px solid var(--vscode-widget-border, #444); marg
 .disc-body p:last-child { margin-bottom: 0; }
 .disc-body ul, .disc-body ol { margin: 2px 0 6px 18px; padding: 0; }
 .disc-body li { margin: 2px 0; }
+.disc-body li input[type='checkbox'] { margin-right: 5px; cursor: default; pointer-events: none; }
+.disc-body del { opacity: 0.6; }
 .disc-body strong { font-weight: 600; }
 .disc-body em { font-style: italic; }
 .disc-body a { color: var(--vscode-textLink-foreground); }

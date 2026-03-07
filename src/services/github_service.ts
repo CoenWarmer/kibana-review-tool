@@ -543,8 +543,19 @@ export class GitHubService {
         log(`[getPRForCurrentBranch] No open PR for branch "${branch}"`);
         return null;
       }
-      log(`[getPRForCurrentBranch] Found PR #${results[0].number} "${results[0].title}"`);
-      return results[0];
+      const pr = results[0];
+      // Ignore fork PRs where the head branch name matches the base branch name
+      // (e.g. alvintuo:main → elastic:main). These would never be the result of
+      // `gh pr checkout` because checking out such a PR would conflict with the
+      // user's own local base branch.
+      if (pr.headRefName === pr.baseRefName) {
+        log(
+          `[getPRForCurrentBranch] Skipping PR #${pr.number} — headRefName "${pr.headRefName}" equals baseRefName (fork-on-base-branch false positive)`
+        );
+        return null;
+      }
+      log(`[getPRForCurrentBranch] Found PR #${pr.number} "${pr.title}"`);
+      return pr;
     } catch (err) {
       log(
         `[getPRForCurrentBranch] gh pr list failed: ${err instanceof Error ? err.message : String(err)}`

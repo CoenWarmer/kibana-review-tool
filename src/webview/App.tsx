@@ -36,6 +36,7 @@ const initialState: AppState = {
   currentUserLogin: '',
   repo: 'elastic/kibana',
   synthtraceScenarios: [],
+  wrongRepo: false,
 };
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
@@ -103,6 +104,17 @@ export function App() {
     document.getElementById(paneId)?.scrollTo({ top: 0 });
   }, [state.activeTab]);
 
+  if (state.wrongRepo) {
+    return (
+      <div className="wrong-repo">
+        <p className="wrong-repo-title">Not a Kibana workspace</p>
+        <p className="wrong-repo-body">
+          Open the <code>elastic/kibana</code> repository to use this extension.
+        </p>
+      </div>
+    );
+  }
+
   const visiblePrCount = state.allPrs.filter((pr) => !pr.isDraft).length;
   const queueLabel = (
     <>
@@ -114,7 +126,7 @@ export function App() {
       )}
     </>
   );
-  const reviewingLabel = state.currentPr ? `Reviewing #${state.currentPr.number}` : 'Reviewing';
+  const reviewingLabel = state.currentPr ? `Reviewing #${state.currentPr.number}` : 'My Branch';
 
   return (
     <>

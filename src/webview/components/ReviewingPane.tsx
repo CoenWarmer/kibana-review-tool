@@ -1,12 +1,7 @@
 import type { ReactNode } from 'react';
 import { postMessage } from '../vscode';
-import {
-  ageLabel,
-  renderMarkdown,
-  extractBuildkiteSummary,
-  isBot,
-  type BuildkiteSummaryItem,
-} from '../utils';
+import { ageLabel, extractBuildkiteSummary, isBot, type BuildkiteSummaryItem } from '../utils';
+import { MarkdownBody } from './MarkdownBody';
 import { FilesSection } from './FilesSection';
 import { DiscussionSection } from './DiscussionSection';
 import type { AppState, GhPullRequest, GhPrFile, TeamReviewInfo } from '../types';
@@ -93,10 +88,9 @@ export function ReviewingPane({
         />
       </div>
       <div className="section">
-        <div
-          className="pr-body"
-          dangerouslySetInnerHTML={{ __html: renderMarkdown(currentPr.body ?? '', repoUrl) }}
-        />
+        <div className="pr-body">
+          <MarkdownBody content={currentPr.body ?? ''} repoUrl={repoUrl} />
+        </div>
       </div>
       <div id="files-section" className="section">
         <FilesSection

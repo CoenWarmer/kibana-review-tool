@@ -81,6 +81,9 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
   private esStatus: 'running' | 'starting' | 'stopped' = 'stopped';
   private kibanaStatus: 'running' | 'starting' | 'stopped' = 'stopped';
 
+  // ─── Workspace validity ─────────────────────────────────────────────────────
+  private wrongRepo = false;
+
   // ─── Synthtrace ──────────────────────────────────────────────────────────────
   private synthtraceScenarios: string[] = [];
   private teamFilterMembers: string[] = [];
@@ -265,6 +268,11 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
 
   // ─── Public API ──────────────────────────────────────────────────────────────
 
+  setWrongRepo(value: boolean): void {
+    this.wrongRepo = value;
+    this.sendState({ wrongRepo: value });
+  }
+
   setSynthtraceScenarios(scenarios: string[]): void {
     this.synthtraceScenarios = scenarios;
     this.sendState({ synthtraceScenarios: scenarios });
@@ -304,6 +312,44 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
   }
 
   /**
+   * Resets the panel to the queue tab with no PR selected or checked out.
+   * Safe to call at any time — is a no-op if state is already clean.
+   * Used defensively on startup when no PR matches the current branch.
+   */
+  resetToQueue(): void {
+    this.currentPr = undefined;
+    this.activeTab = 'queue';
+    this._checkedOutPrNumber = null;
+    this.cfPrNumber = null;
+    this.cfBaseCommit = '';
+    this.cfFiles = [];
+    this.cfActiveFile = null;
+    this.cfReviewedPaths.clear();
+    this.cfOwnedByMeFilter = null;
+    this.cfIsLoading = false;
+    this.cfErrorMessage = '';
+    this.cfSuggestedOrder = null;
+    this.cfOrderMode = 'default';
+    this.cfIsOrderLoading = false;
+    this.discussionComments = [];
+    this.sendState({
+      currentPr: null,
+      activeTab: 'queue',
+      checkedOutPrNumber: null,
+      cfFiles: [],
+      cfActiveFile: null,
+      cfReviewedPaths: [],
+      cfOwnedByMePaths: null,
+      cfIsLoading: false,
+      cfErrorMessage: '',
+      cfSuggestedOrder: null,
+      cfOrderMode: 'default',
+      cfIsOrderLoading: false,
+      discussionComments: [],
+    });
+  }
+
+  /**
    * Clears changed-files state.
    * Pass `includeDescription: true` to also clear the current PR description.
    */
@@ -327,7 +373,7 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
   }
 
   async refresh(): Promise<void> {
-    if (this.isLoading) return;
+    if (this.wrongRepo || this.isLoading) return;
 
     log('--- PR list refresh started ---');
     this.isLoading = true;
@@ -593,6 +639,7 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
         .getConfiguration('kibana-pr-reviewer')
         .get<string>('repo', 'elastic/kibana'),
       synthtraceScenarios: this.synthtraceScenarios,
+      wrongRepo: this.wrongRepo,
     };
   }
 

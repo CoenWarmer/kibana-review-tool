@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { postMessage } from '../vscode';
-import { ageLabel, renderMarkdown } from '../utils';
+import { ageLabel } from '../utils';
 import type { GhDiscussionComment } from '../types';
+import { MarkdownBody } from './MarkdownBody';
 
 interface Props {
   comments: GhDiscussionComment[];
@@ -145,10 +146,9 @@ function DiscussionComment({
         <span className="disc-age">{ageLabel(c.createdAt)}</span>
         {reviewBadge}
       </div>
-      <div
-        className="disc-body"
-        dangerouslySetInnerHTML={{ __html: renderMarkdown(c.body, repoUrl) }}
-      />
+      <div className="disc-body">
+        <MarkdownBody content={c.body} repoUrl={repoUrl} />
+      </div>
     </div>
   );
 }

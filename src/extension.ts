@@ -13,6 +13,21 @@ import { openDiff, GitBaseContentProvider } from './commands/open_diff';
 import { initLogger, log, logError } from './logger';
 
 /**
+ * Returns true when the workspace root is the Kibana repository, detected by
+ * checking that `package.json` at the root has `"name": "kibana"`.
+ */
+function isKibanaWorkspace(root: string): boolean {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')) as {
+      name?: string;
+    };
+    return pkg.name === 'kibana';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Reads `config/kibana.dev.yml` and returns the URL of the local dev server.
  * Falls back to http://localhost:5601 if the file is missing or unparseable.
  */
@@ -94,8 +109,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     })
   );
 
-  // ─── Dev server status ─────────────────────────────────────────────────────
+  // ─── Workspace validation ───────────────────────────────────────────────────
   const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd();
+  prPanelProvider.setWrongRepo(!isKibanaWorkspace(workspaceRoot));
+
+  // Re-check whenever the user adds or removes workspace folders.
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      const newRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd();
+      prPanelProvider.setWrongRepo(!isKibanaWorkspace(newRoot));
+    })
+  );
+
+  // ─── Dev server status ─────────────────────────────────────────────────────
   const serverStatusService = new ServerStatusService(getKibanaDevUrl(workspaceRoot));
 
   serverStatusService.onStatusChange((state) => {
@@ -821,6 +847,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
       if (!pr) {
         log('[restore] No PR for current branch — nothing to restore.');
+        // Explicitly reset to guard against VS Code restoring stale webview state
+        // (e.g. window reload, retainContextWhenHidden, or workspace-state revival).
+        prPanelProvider.resetToQueue();
         return;
       }
 
@@ -860,6 +889,38 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       );
     }
   })();
+
+  // ─── Branch-change detection on window focus ───────────────────────────────
+  // When the user switches back to VS Code after manually changing branches in
+  // a terminal, detect the mismatch and reset the panel to the queue tab.
+  context.subscriptions.push(
+    vscode.window.onDidChangeWindowState(async (windowState) => {
+      if (!windowState.focused) return;
+
+      const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!cwd || prPanelProvider.checkedOutPrNumber === null) return;
+
+      const expectedBranch = prPanelProvider.currentPr?.headRefName;
+      if (!expectedBranch) return;
+
+      try {
+        const { execFile } = await import('child_process');
+        const { promisify } = await import('util');
+        const { stdout } = await promisify(execFile)('git', ['branch', '--show-current'], { cwd });
+        const currentBranch = stdout.trim();
+
+        if (currentBranch && currentBranch !== expectedBranch) {
+          log(
+            `[branch-watch] Branch changed from "${expectedBranch}" to "${currentBranch}" — clearing checkout state`
+          );
+          prPanelProvider.resetToQueue();
+          clearCommentThreads();
+        }
+      } catch {
+        // git unavailable or not in a git repo — ignore silently
+      }
+    })
+  );
 
   // Cleanup on deactivate
   context.subscriptions.push({ dispose: disposeTerminal });
