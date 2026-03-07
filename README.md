@@ -8,7 +8,7 @@ A VSCode/Cursor extension for Kibana engineers to review pull requests efficient
 
 Kibana has a large influx of new PRs. The introduction of AI assisted coding makes the influx even higher.
 
-Traditionally PRs are reviewed via the Github UI. While this works for some use cases, it could be way better. At the time of writing, Github's UI has been largely stagnant for years.
+Traditionally PRs are reviewed via the Github UI. While this works for some use cases, it could be way better. At the time of writing, Github's UI has been largely stagnant for years. This gives us an opportunity to step in and improve the Kibana reviewing experience. 
 
 ### Data needed for a good review
 There is not an insignficant amount of data points that an engineer (or an LLM) needs to fully judge the quality of a PR.
