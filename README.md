@@ -6,9 +6,9 @@ A VSCode/Cursor extension for Kibana engineers to review pull requests efficient
 
 ## Why?
 
-Kibana has a large influx of new PRs. The introduction of AI assisted coding already makes the influx even higher.
+Kibana has a large influx of new PRs. The introduction of AI assisted coding makes the influx even higher.
 
-Traditionally PRs are reviewed via the Github UI. While this is good for some use cases, it could be way better. At the time of writing, Github's UI has been largely stagnant for years.
+Traditionally PRs are reviewed via the Github UI. While this works for some use cases, it could be way better. At the time of writing, Github's UI has been largely stagnant for years.
 
 ### Data needed for a good review
 There is not an insignficant amount of data points that an engineer (or an LLM) needs to fully judge the quality of a PR.
@@ -21,12 +21,14 @@ A reviewer needs:
 - information on test coverage
 - how the proposed feature behaves functionally, at runtime
 
-Therefore, strictly reviewing from the Github UI means a reviewer has not enough data to come to a good judgement. As such, this strategy leads to low quality reviews.
+Therefore, strictly reviewing from the Github UI means a reviewer does not have enough data to come to a good judgement.
 
 ### Friction when reviewing in Kibana
-Some reviewers go further than a look at the code and actually check out the branch and see how the feature behaves. While some do this, many do not.
+In addition to this, reviewing PRs at Kibana has friction. 
 
-One of the reasons that contribute to reviewers not checking out PRs is due to the friction that is imposed on the reviewer in getting a Kibana PR ready to review.
+Reviewers look at static code. Some reviewers go further and actually check out the branch and see how the feature behaves.
+
+I suspect that the reason for this is the amount of friction that a reviewer has to deal with in getting a Kibana PR ready to review.
 
 A reviewer needs to:
 - find the PR that she needs to review
@@ -34,15 +36,15 @@ A reviewer needs to:
 - run yarn kbn bootstrap
 - start es + kibana
 - optionally load test data / fixtures
-- understand the code
+- understand the code <-- only now do we start reviewing, the steps prior are just ceremony
 - understand the intended behavior
 - judge the code in terms of coding standards
 - judge the code in context of the product
 - judge if the code covers both happy and unhappy paths
 
-This, especially the getting started parts, is slow an unwieldy.
+This, especially the getting started parts, take effort and are slow (bootstrapping can take a while).
 
-The speed of bootstrapping / starting Kibana we can't fix easily, but we can improve our tooling.
+The speed of bootstrapping / starting Kibana we can't fix easily, but we can improve our tooling to make things easier.
 
 This is where this extension comes in.
 
