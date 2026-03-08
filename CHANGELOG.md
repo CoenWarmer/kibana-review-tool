@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.1.7] - 2026-03-08
+
+### Added
+- **Discussion commenter filter**: a filter button in the Discussion section header opens a dropdown with a checkbox per commenter; unchecking a user hides all their comments; preference persisted in `localStorage`
+- **Collapsible PR header**: when the reviewers/info section exceeds 370 px, it is clamped with a fade and a "See all" button to expand it
+- **Collapsible file list preview**: when a PR is not checked out and the changed-files list exceeds 500 px, it is clamped with a "See all N files" expand button
+
+### Fixed
+- Large PRs (e.g. 1 000+ files) crashing the panel: replaced `gh pr view --json files` (capped at 100) with paginated REST API calls using `--paginate --jq '.[]'` to produce valid NDJSON, parsed line-by-line
+- `TypeError: Cannot read properties of undefined (reading 'split')` in `FilesSection` caused by the REST API returning `filename` instead of the expected `path` field — normalized in a `fetchPrFiles` mapping layer
+- `currentBranch` state threaded correctly through `AppState`, `PrPanelProvider`, and `App.tsx` so the "My Branch" tab label reflects the live Git branch
+
+### Removed
+- Previous/next diff navigation buttons (keybindings, menu items, and commands) — they were non-functional
+
+---
+
 ## [0.1.6] - 2026-03-07
 
 ### Fixed
