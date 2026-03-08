@@ -94,6 +94,15 @@ export interface GhDiscussionComment {
   reviewState?: 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED';
 }
 
+/** A commit pushed to the PR branch. */
+export interface GhCommit {
+  sha: string;
+  message: string;
+  author: string;
+  avatarUrl?: string;
+  committedAt: string;
+}
+
 export interface GhPullRequestFile {
   path: string;
   additions: number;
@@ -280,13 +289,7 @@ export class GitHubService {
    * (NDJSON), which we then parse line-by-line and collect into a single array.
    */
   private async fetchAllPages<T>(apiPath: string, perPage = 100): Promise<T[]> {
-    const raw = await runGh([
-      'api',
-      '--paginate',
-      '--jq',
-      '.[]',
-      `${apiPath}?per_page=${perPage}`,
-    ]);
+    const raw = await runGh(['api', '--paginate', '--jq', '.[]', `${apiPath}?per_page=${perPage}`]);
     return raw
       .trim()
       .split('\n')
@@ -706,5 +709,36 @@ export class GitHubService {
     return [...issueComments, ...reviewComments].sort(
       (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );
+  }
+
+  /**
+   * Fetches the list of commits on a PR, sorted oldest-first.
+   */
+  async getPRCommits(prNumber: number): Promise<GhCommit[]> {
+    const [owner, repo] = this.repo.split('/');
+
+    const raw = await runGh([
+      'api',
+      `repos/${owner}/${repo}/pulls/${prNumber}/commits?per_page=100`,
+    ]);
+
+    type RawCommit = {
+      sha: string;
+      commit: {
+        message: string;
+        author: { name: string; date: string };
+        committer: { date: string };
+      };
+      author?: { login: string; avatar_url?: string } | null;
+      committer?: { login: string; avatar_url?: string } | null;
+    };
+
+    return (JSON.parse(raw) as RawCommit[]).map((c) => ({
+      sha: c.sha,
+      message: c.commit.message.split('\n')[0],
+      author: c.author?.login ?? c.commit.author.name,
+      avatarUrl: c.author?.avatar_url,
+      committedAt: c.commit.author.date,
+    }));
   }
 }

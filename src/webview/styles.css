@@ -637,6 +637,20 @@ hr { border: none; border-top: 1px solid var(--vscode-widget-border, #444); marg
 
 .discussion-thread { display: flex; flex-direction: column; gap: 1px; margin-bottom: 8px; }
 .disc-comment { padding: 8px 10px; border-left: 2px solid var(--vscode-widget-border, #333); margin: 0 0 6px 0; }
+.disc-commit {
+  display: flex; align-items: center; gap: 6px; flex-wrap: nowrap;
+  padding: 4px 10px; margin: 0 0 4px 0;
+  border-left: 2px solid var(--vscode-widget-border, #333);
+  opacity: 0.85;
+  font-size: 11px;
+  overflow: hidden;
+}
+.disc-commit-icon { flex-shrink: 0; font-size: 11px; opacity: 0.6; }
+.disc-commit-msg { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.disc-commit-sha { flex-shrink: 0; font-family: var(--vscode-editor-font-family, monospace); font-size: 10px; opacity: 0.6; }
+.disc-commit-link { color: var(--vscode-textLink-foreground); text-decoration: none; }
+.disc-commit-link:hover { text-decoration: underline; }
+.disc-commit-sha-link { color: var(--vscode-descriptionForeground); }
 .disc-header { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; flex-wrap: wrap; }
 .disc-avatar {
   width: 20px; height: 20px; border-radius: 50%;

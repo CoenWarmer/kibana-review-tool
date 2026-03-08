@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { postMessage } from '../vscode';
 import { ageLabel } from '../utils';
-import type { GhDiscussionComment } from '../types';
+import type { GhDiscussionComment, GhCommit } from '../types';
 import { MarkdownBody } from './MarkdownBody';
 
 const HIDDEN_USERS_KEY = 'disc-hidden-users';
@@ -21,6 +21,7 @@ function saveHiddenUsers(hidden: Set<string>): void {
 
 interface Props {
   comments: GhDiscussionComment[];
+  commits: GhCommit[];
   repoUrl: string;
   onCommentPosted: boolean;
   onReviewSubmitted: { event: 'APPROVE' | 'REQUEST_CHANGES' } | null;
@@ -29,6 +30,7 @@ interface Props {
 
 export function DiscussionSection({
   comments,
+  commits,
   repoUrl,
   onCommentPosted,
   onReviewSubmitted,
@@ -118,13 +120,31 @@ export function DiscussionSection({
   const visibleComments = comments.filter((c) => !hiddenUsers.has(c.author));
   const hiddenCount = comments.length - visibleComments.length;
 
+  // Build a chronologically-sorted timeline of comments and commits.
+  type TimelineItem =
+    | { kind: 'comment'; item: GhDiscussionComment; sortKey: number }
+    | { kind: 'commit'; item: GhCommit; sortKey: number };
+
+  const timeline: TimelineItem[] = [
+    ...visibleComments.map((c) => ({
+      kind: 'comment' as const,
+      item: c,
+      sortKey: new Date(c.createdAt).getTime(),
+    })),
+    ...commits.map((c) => ({
+      kind: 'commit' as const,
+      item: c,
+      sortKey: new Date(c.committedAt).getTime(),
+    })),
+  ].sort((a, b) => a.sortKey - b.sortKey);
+
   return (
     <>
       <div className="section-header">
         <span className="section-title">
           Discussion
-          {comments.length > 0
-            ? ` (${visibleComments.length}${hiddenCount > 0 ? `/${comments.length}` : ''})`
+          {timeline.length > 0
+            ? ` (${timeline.length}${hiddenCount > 0 ? `/${comments.length + commits.length}` : ''})`
             : ''}
         </span>
         {commenters.length > 0 && (
@@ -163,11 +183,23 @@ export function DiscussionSection({
           </div>
         )}
       </div>
-      {visibleComments.length > 0 && (
+      {timeline.length > 0 && (
         <div className="discussion-thread">
-          {visibleComments.map((c) => (
-            <DiscussionComment key={c.id} comment={c} repoUrl={repoUrl} />
-          ))}
+          {timeline.map((entry) =>
+            entry.kind === 'comment' ? (
+              <DiscussionComment
+                key={`c-${entry.item.id}`}
+                comment={entry.item}
+                repoUrl={repoUrl}
+              />
+            ) : (
+              <DiscussionCommit
+                key={`commit-${entry.item.sha}`}
+                commit={entry.item}
+                repoUrl={repoUrl}
+              />
+            )
+          )}
         </div>
       )}
       <div className="comment-box">
@@ -238,6 +270,37 @@ function DiscussionComment({
       <div className="disc-body">
         <MarkdownBody content={c.body} repoUrl={repoUrl} />
       </div>
+    </div>
+  );
+}
+
+function DiscussionCommit({ commit: c, repoUrl }: { commit: GhCommit; repoUrl: string }) {
+  const shortSha = c.sha.slice(0, 7);
+  const commitUrl = `${repoUrl}/commit/${c.sha}`;
+  return (
+    <div className="disc-commit">
+      <span className="disc-commit-icon" aria-label="commit">
+        ●
+      </span>
+      <span className="disc-avatar">
+        {c.avatarUrl ? (
+          <img src={c.avatarUrl} alt={c.author} />
+        ) : (
+          c.author.slice(0, 2).toUpperCase()
+        )}
+      </span>
+      <span className="disc-author">{c.author}</span>
+      <span className="disc-commit-msg">
+        <a href={commitUrl} className="disc-commit-link">
+          {c.message}
+        </a>
+      </span>
+      <span className="disc-commit-sha">
+        <a href={commitUrl} className="disc-commit-link disc-commit-sha-link">
+          {shortSha}
+        </a>
+      </span>
+      <span className="disc-age">{ageLabel(c.committedAt)}</span>
     </div>
   );
 }

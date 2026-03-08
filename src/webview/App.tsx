@@ -19,6 +19,7 @@ const initialState: AppState = {
   activeTab: 'queue',
   currentPr: null,
   discussionComments: [],
+  prCommits: [],
   checkoutBusy: false,
   checkoutStage: '',
   cfFiles: [],
@@ -157,6 +158,7 @@ export function App() {
           currentBranch={state.currentBranch}
           currentPr={state.currentPr}
           discussionComments={state.discussionComments}
+          prCommits={state.prCommits}
           checkoutBusy={state.checkoutBusy}
           checkoutStage={state.checkoutStage}
           cfFiles={state.cfFiles}

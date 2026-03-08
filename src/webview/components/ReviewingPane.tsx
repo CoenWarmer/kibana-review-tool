@@ -13,6 +13,7 @@ type ReviewingPaneProps = Pick<
   AppState,
   | 'currentPr'
   | 'discussionComments'
+  | 'prCommits'
   | 'checkoutBusy'
   | 'checkoutStage'
   | 'cfFiles'
@@ -57,6 +58,7 @@ export function ReviewingPane({
   cfOrderMode,
   cfIsOrderLoading,
   discussionComments,
+  prCommits,
   repo,
   synthtraceScenarios,
 }: ReviewingPaneProps) {
@@ -117,6 +119,7 @@ export function ReviewingPane({
       <div className="section">
         <DiscussionSection
           comments={discussionComments}
+          commits={prCommits}
           repoUrl={repoUrl}
           onCommentPosted={commentPosted}
           onReviewSubmitted={reviewSubmitted}

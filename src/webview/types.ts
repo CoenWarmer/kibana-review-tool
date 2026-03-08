@@ -60,6 +60,14 @@ export interface GhDiscussionComment {
   reviewState?: 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED';
 }
 
+export interface GhCommit {
+  sha: string;
+  message: string;
+  author: string;
+  avatarUrl?: string;
+  committedAt: string;
+}
+
 export interface OrderedFile {
   path: string;
   additions: number;
@@ -99,6 +107,7 @@ export interface AppState {
   // Reviewing pane
   currentPr: GhPullRequest | null;
   discussionComments: GhDiscussionComment[];
+  prCommits: GhCommit[];
   checkoutBusy: boolean;
   checkoutStage: string;
 

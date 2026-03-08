@@ -1,5 +1,10 @@
 import * as vscode from 'vscode';
-import type { GitHubService, GhPullRequest, GhDiscussionComment } from '../services/github_service';
+import type {
+  GitHubService,
+  GhPullRequest,
+  GhDiscussionComment,
+  GhCommit,
+} from '../services/github_service';
 import type { CodeOwnersService } from '../services/codeowners_service';
 import type { OrderedFile } from '../services/file_ordering_service';
 import type { ReviewOrderSuggestion } from '../services/review_order_service';
@@ -49,6 +54,7 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
   // Description state
   currentPr?: GhPullRequest;
   private discussionComments: GhDiscussionComment[] = [];
+  private prCommits: GhCommit[] = [];
 
   // Tab state — tracked server-side so re-renders don't reset the tab
   private activeTab: 'queue' | 'reviewing' = 'queue';
@@ -169,7 +175,12 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
           if (pr) {
             this.currentPr = pr;
             this.activeTab = 'reviewing';
-            this.sendState({ currentPr: pr, activeTab: 'reviewing', discussionComments: [] });
+            this.sendState({
+              currentPr: pr,
+              activeTab: 'reviewing',
+              discussionComments: [],
+              prCommits: [],
+            });
             this.onSelectPR?.(pr);
             void this.fetchAndUpdateDetail(pr.number);
           }
@@ -338,6 +349,7 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
     this.cfOrderMode = 'default';
     this.cfIsOrderLoading = false;
     this.discussionComments = [];
+    this.prCommits = [];
     this.sendState({
       currentPr: null,
       activeTab: 'queue',
@@ -352,6 +364,7 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
       cfOrderMode: 'default',
       cfIsOrderLoading: false,
       discussionComments: [],
+      prCommits: [],
     });
   }
 
@@ -375,6 +388,7 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
     this.cfOrderMode = 'default';
     this.cfIsOrderLoading = false;
     this.discussionComments = [];
+    this.prCommits = [];
     this.sendState();
   }
 
@@ -562,14 +576,16 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
   /** Fetches full PR detail + discussion comments, then sends updated state. */
   private async fetchAndUpdateDetail(prNumber: number): Promise<void> {
     try {
-      const [detail, comments] = await Promise.all([
+      const [detail, comments, commits] = await Promise.all([
         this.githubService.getPullRequestDetail(prNumber),
         this.githubService.getDiscussionComments(prNumber).catch(() => [] as GhDiscussionComment[]),
+        this.githubService.getPRCommits(prNumber).catch(() => [] as GhCommit[]),
       ]);
       if (this.currentPr?.number === prNumber) {
         this.currentPr = detail;
         this.discussionComments = comments;
-        this.sendState({ currentPr: detail, discussionComments: comments });
+        this.prCommits = commits;
+        this.sendState({ currentPr: detail, discussionComments: comments, prCommits: commits });
 
         // Compute ownership for the preview file list so the bar appears even
         // before checkout. Skip if already computed (e.g. branch is checked out).
@@ -626,6 +642,7 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
       activeTab: this.activeTab,
       currentPr: this.currentPr ?? null,
       discussionComments: this.discussionComments,
+      prCommits: this.prCommits,
       checkoutBusy: this.checkoutBusy,
       checkoutStage: this.checkoutStage,
       cfFiles: this.cfFiles,
