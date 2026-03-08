@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.8] - 2026-03-08
+
+### Added
+- **Commit events in Discussion timeline**: commits pushed to a PR are now interleaved chronologically with comments; each row shows the author avatar, login, short SHA (clickable), and first line of the commit message
+- **Commit diff viewer**: clicking a commit SHA opens a QuickPick listing all files changed in that commit; selecting a file opens a side-by-side VS Code diff (`git show <sha>^:<file>` vs `git show <sha>:<file>`); handles added, deleted, and renamed files
+- **Full commit message tooltip**: hovering over a truncated commit message reveals the complete multi-line message in a styled CSS tooltip (native `title` is suppressed in VS Code webviews)
+- **Auto-refresh on tab switch**: switching to "Review Queue" triggers a queue refresh; switching to the "Reviewing" tab re-fetches PR details and (if checked out) files and inline comments
+- **Deferred tab label**: the second tab shows `…` on startup until the PR-restore check completes, preventing the "My Branch" label from flashing before resolving to "Reviewing #XXXXX"
+
+### Changed
+- Extension renamed to **Elastic PR Reviewer** — works in any GitHub repository, not just Kibana; the `⚡` dev-environment toggle is disabled with a tooltip when the workspace is not `elastic/kibana`; command palette category, output channel, config namespace, and all internal IDs updated to `elastic-pr-reviewer`
+- PR header fade/mask only appears when content actually overflows the 370 px clamp, not on every PR
+
+### Fixed
+- `pr-base://COMMIT/…` virtual URI failing because VS Code lowercases URI authorities (`COMMIT` → `commit`)
+
+---
+
 ## [0.1.7] - 2026-03-08
 
 ### Added
