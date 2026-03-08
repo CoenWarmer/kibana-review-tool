@@ -1,14 +1,14 @@
-# Kibana PR Reviewer
+# Elastic PR Reviewer
 
-A VSCode/Cursor extension for Kibana engineers to review pull requests efficiently.
+A VSCode/Cursor extension for Elastic engineers to review pull requests efficiently.
 
 <img alt="Screenshot 2026-03-05 at 19 12 41" src="https://github.com/user-attachments/assets/cdb2ef0a-bd44-41b3-ae84-60e7d89dbdb6" />
 
 ## Why?
 
-Kibana has a large influx of new PRs. The introduction of AI assisted coding makes the influx even higher.
+Elastic has a large influx of new PRs. The introduction of AI assisted coding makes the influx even higher.
 
-Traditionally PRs are reviewed via the Github UI. While this works for some use cases, it could be way better. At the time of writing, Github's UI has been largely stagnant for years. This gives us an opportunity to step in and improve the Kibana reviewing experience. 
+Traditionally PRs are reviewed via the Github UI. While this works for some use cases, it could be way better. At the time of writing, Github's UI has been largely stagnant for years. This gives us an opportunity to step in and improve the reviewing experience. 
 
 ### Data needed for a good review
 There is not an insignficant amount of data points that an engineer (or an LLM) needs to fully judge the quality of a PR.
@@ -23,20 +23,18 @@ A reviewer needs:
 
 Therefore, strictly reviewing from the Github UI means a reviewer does not have enough data to come to a good judgement.
 
-### Friction when reviewing in Kibana
+### Friction when reviewing Kibana PRs
 In addition to this, reviewing PRs at Kibana has friction. 
 
 Reviewers tend to look at static code. Some reviewers go further and actually check out the branch and see how the feature behaves.
 
-I suspect that the reason for this is the amount of friction that a reviewer has to deal with in getting a Kibana PR ready to review.
-
-A reviewer needs to:
+A reviewer in Kibana needs to:
 - find the PR that she needs to review
 - switch to the branch
 - run yarn kbn bootstrap
 - start es + kibana
 - optionally load test data / fixtures
-- understand the code <-- only now do we start reviewing, the steps prior are just ceremony
+- understand the code <-- actual reviewing starts here 
 - understand the intended behavior
 - judge the code in terms of coding standards
 - judge the code in context of the product
@@ -44,7 +42,7 @@ A reviewer needs to:
 
 This, especially the getting started parts, take effort and are slow (bootstrapping and starting Kibana after switching branches can take somewhere between 1 and 4 minutes).
 
-The speed of bootstrapping / starting Kibana we can't fix easily, but we can improve our tooling to make things easier.
+The speed of bootstrapping / starting Kibana we can't fix easily, but we can improve our tooling to make things easier. If we are succesful in lowering the friction, we can increase the likeliness of reviewers checking out PRs.
 
 This is where this extension comes in.
 
@@ -103,7 +101,7 @@ Open `Settings > Kibana PR Reviewer`:
 
 ### Setting your LLM API key
 
-Run `> Kibana PR Reviewer: Set LLM API Key` from the command palette. The key is stored in VS Code's encrypted `SecretStorage`.
+Run `> Elastic PR Reviewer: Set LLM API Key` from the command palette. The key is stored in VS Code's encrypted `SecretStorage`.
 
 ## How File Ordering Works
 
