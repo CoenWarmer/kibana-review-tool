@@ -42,6 +42,8 @@ const initialState: AppState = {
   cfCommitFilter: null,
   cfCommitFilterFiles: null,
   cfCommitFilterLoading: false,
+  myBranchBaseRef: null,
+  myBranchCommits: [],
 };
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
@@ -169,6 +171,8 @@ export function App() {
           cfCommitFilter={state.cfCommitFilter}
           cfCommitFilterFiles={state.cfCommitFilterFiles}
           cfCommitFilterLoading={state.cfCommitFilterLoading}
+          myBranchBaseRef={state.myBranchBaseRef}
+          myBranchCommits={state.myBranchCommits}
           esStatus={state.esStatus}
           kibanaStatus={state.kibanaStatus}
           checkedOutPrNumber={state.checkedOutPrNumber}

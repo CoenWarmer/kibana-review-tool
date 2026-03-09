@@ -1,5 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import * as vscode from 'vscode';
 import { GitHubService } from './services/github_service';
 import { CodeOwnersService } from './services/codeowners_service';
@@ -142,15 +144,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const pr = prPanelProvider.currentPr;
     const files = prPanelProvider.getCurrentFiles();
     const baseCommit = prPanelProvider.getCurrentBaseCommit();
-    if (!pr || files.length === 0 || !baseCommit) {
+    if (files.length === 0 || !baseCommit) {
       void vscode.window.showWarningMessage(
-        'Checkout a PR first to use the review order suggestion.'
+        'No changed files loaded yet. Wait for the file list to finish loading.'
       );
       return;
     }
     const cts = new vscode.CancellationTokenSource();
     prPanelProvider.setOrderLoading(true);
-    suggestReviewOrder(pr, files, baseCommit, workspaceRoot, cts.token)
+    suggestReviewOrder(pr ?? null, files, baseCommit, workspaceRoot, cts.token)
       .then((suggestion) => {
         prPanelProvider.setOrderSuggestion(suggestion);
       })
@@ -271,6 +273,35 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   prPanelProvider.onOpenCommitFile = (sha, path, beforePath) => {
     void openCommitFileDiff(sha, path, beforePath ?? path);
+  };
+
+  prPanelProvider.onCreatePr = () => {
+    const branch = prPanelProvider.currentBranch;
+    const repo = vscode.workspace
+      .getConfiguration('elastic-pr-reviewer')
+      .get<string>('repo', 'elastic/kibana');
+    if (branch) {
+      void vscode.env.openExternal(
+        vscode.Uri.parse(
+          `https://github.com/${repo}/compare/${encodeURIComponent(branch)}?expand=1`
+        )
+      );
+    }
+  };
+
+  prPanelProvider.onCommitFiles = (files, message) => {
+    const cwd = workspaceRoot;
+    if (!cwd) return;
+    const exec = promisify(execFile);
+    exec('git', ['add', '--', ...files], { cwd })
+      .then(() => exec('git', ['commit', '-m', message], { cwd }))
+      .then(() => {
+        void prPanelProvider.loadMyBranchData();
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        void vscode.window.showErrorMessage(`Commit failed: ${msg}`);
+      });
   };
 
   // ─── Git base content provider ─────────────────────────────────────────────
@@ -813,7 +844,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         log('[restore] No PR for current branch — nothing to restore.');
         // Explicitly reset to guard against VS Code restoring stale webview state
         // (e.g. window reload, retainContextWhenHidden, or workspace-state revival).
-        prPanelProvider.resetToQueue();
+        prPanelProvider.resetToQueue({ loadingMyBranch: true });
+        void prPanelProvider.loadMyBranchData();
         return;
       }
 
@@ -882,8 +914,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           log(
             `[branch-watch] Branch changed from "${expectedBranch}" to "${currentBranch}" — clearing checkout state`
           );
-          prPanelProvider.resetToQueue();
+          prPanelProvider.resetToQueue({ loadingMyBranch: true });
           clearCommentThreads();
+          void prPanelProvider.loadMyBranchData();
         }
       } catch {
         // git unavailable or not in a git repo — ignore silently

@@ -31,7 +31,8 @@ async function getFileDiff(
   cwd: string | undefined
 ): Promise<string> {
   try {
-    const { stdout } = await execFileAsync('git', ['diff', baseCommit, 'HEAD', '--', filePath], {
+    // Omitting HEAD compares baseCommit against the working tree (includes uncommitted changes).
+    const { stdout } = await execFileAsync('git', ['diff', baseCommit, '--', filePath], {
       cwd,
     });
     const lines = stdout.split('\n');
@@ -68,13 +69,15 @@ async function buildFileSections(
   return sections;
 }
 
-function buildPrompt(pr: GhPullRequest, fileSections: string[]): string {
-  const prBody = (pr.body ?? '').slice(0, 800);
+function buildPrompt(pr: GhPullRequest | null, fileSections: string[]): string {
+  const prBody = (pr?.body ?? '').slice(0, 800);
+  const prHeader = pr
+    ? `PR #${pr.number}: ${pr.title}\n${prBody ? `\nDescription:\n${prBody}\n` : ''}`
+    : 'Local branch changes (no associated PR yet)\n';
   return `You are helping a software engineer review a GitHub pull request.
 Your task: suggest two orderings for reviewing the changed files.
 
-PR #${pr.number}: ${pr.title}
-${prBody ? `\nDescription:\n${prBody}\n` : ''}
+${prHeader}
 Changed files with diffs:
 ${fileSections.join('\n\n')}
 
@@ -277,7 +280,7 @@ async function suggestWithAnthropic(
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export async function suggestReviewOrder(
-  pr: GhPullRequest,
+  pr: GhPullRequest | null,
   files: GhPullRequestFile[],
   baseCommit: string,
   cwd: string | undefined,

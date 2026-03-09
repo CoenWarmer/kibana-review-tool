@@ -35,6 +35,9 @@ interface Props {
   commitFilterFiles: CommitFile[] | null;
   /** True while git diff-tree is running for the current commit selection. */
   commitFilterLoading: boolean;
+  /** When set, each file row shows a commit-selection checkbox. */
+  selectedForCommit?: Set<string>;
+  onToggleFileForCommit?: (path: string) => void;
 }
 
 export function FilesSection({
@@ -53,6 +56,8 @@ export function FilesSection({
   commitFilter,
   commitFilterFiles,
   commitFilterLoading,
+  selectedForCommit,
+  onToggleFileForCommit,
 }: Props) {
   const [search, setSearch] = useState('');
   const [showOwnedByMe, setShowOwnedByMe] = useState(false);
@@ -105,7 +110,11 @@ export function FilesSection({
   } else if (errorMessage) {
     body = <div className="cf-status error">✕ {errorMessage}</div>;
   } else if (allFiles.length === 0) {
-    body = <div className="cf-status">Checkout this PR to see changed files.</div>;
+    body = (
+      <div className="cf-status">
+        {isCheckedOut ? 'No changed files.' : 'Checkout this PR to see changed files.'}
+      </div>
+    );
   } else {
     const q = search.trim().toLowerCase();
     const filtered = q ? visible.filter((f) => f.path.toLowerCase().includes(q)) : visible;
@@ -129,6 +138,8 @@ export function FilesSection({
               dimmed={dimmed}
               commitFilter={commitFilter}
               commitFile={commitFileMap.get(sf.path)}
+              selectedForCommit={selectedForCommit}
+              onToggleFileForCommit={onToggleFileForCommit}
             />
           );
         });
@@ -142,6 +153,8 @@ export function FilesSection({
           touchedPaths={touchedPaths}
           commitFilter={commitFilter}
           commitFileMap={commitFileMap}
+          selectedForCommit={selectedForCommit}
+          onToggleFileForCommit={onToggleFileForCommit}
         />
       );
     }
@@ -207,15 +220,12 @@ export function FilesSection({
               ))}
             </div>
           </div>
-        </div>
-
-        {commits.length > 0 && isCheckedOut && (
           <CommitStepper
             commits={commits}
             commitFilter={commitFilter}
             isLoading={commitFilterLoading}
           />
-        )}
+        </div>
 
         <div className="cf-file-list">{fileListNode}</div>
       </>
@@ -248,6 +258,8 @@ function OrderedFileRow({
   dimmed = false,
   commitFilter = null,
   commitFile,
+  selectedForCommit,
+  onToggleFileForCommit,
 }: {
   file: OrderedFile;
   reason: string;
@@ -257,6 +269,8 @@ function OrderedFileRow({
   dimmed?: boolean;
   commitFilter?: string | null;
   commitFile?: CommitFile;
+  selectedForCommit?: Set<string>;
+  onToggleFileForCommit?: (path: string) => void;
 }) {
   const status = normalizeFileStatus(file);
   const { icon, colorClass } = cfStatusIcon(status);
@@ -279,17 +293,31 @@ function OrderedFileRow({
         data-path={file.path}
         onClick={dimmed ? undefined : handleClick}
       >
-        <input
-          type="checkbox"
-          className="review-check"
-          title="Mark as reviewed"
-          checked={isReviewed}
-          onChange={(e) => {
-            e.stopPropagation();
-            postMessage({ type: 'toggleReviewed', path: file.path });
-          }}
-          onClick={(e) => e.stopPropagation()}
-        />
+        {selectedForCommit ? (
+          <input
+            type="checkbox"
+            className="commit-check"
+            title="Include in commit"
+            checked={selectedForCommit.has(file.path)}
+            onChange={(e) => {
+              e.stopPropagation();
+              onToggleFileForCommit?.(file.path);
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <input
+            type="checkbox"
+            className="review-check"
+            title="Mark as reviewed"
+            checked={isReviewed}
+            onChange={(e) => {
+              e.stopPropagation();
+              postMessage({ type: 'toggleReviewed', path: file.path });
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        )}
         <span className="ordered-num">{num}</span>
         <span className={`status-icon ${colorClass}`} title={status}>
           {icon}
@@ -316,6 +344,8 @@ function TreeChildren({
   touchedPaths,
   commitFilter,
   commitFileMap,
+  selectedForCommit,
+  onToggleFileForCommit,
 }: {
   children: CfTreeChild[];
   activeFile: string | null;
@@ -323,6 +353,8 @@ function TreeChildren({
   touchedPaths: Set<string> | null;
   commitFilter: string | null;
   commitFileMap: Map<string, CommitFile>;
+  selectedForCommit?: Set<string>;
+  onToggleFileForCommit?: (path: string) => void;
 }): ReactElement {
   return (
     <>
@@ -338,6 +370,8 @@ function TreeChildren({
               dimmed={dimmed}
               commitFilter={commitFilter}
               commitFile={commitFileMap.get(child.file.path)}
+              selectedForCommit={selectedForCommit}
+              onToggleFileForCommit={onToggleFileForCommit}
             />
           );
         }
@@ -355,6 +389,8 @@ function TreeChildren({
                 touchedPaths={touchedPaths}
                 commitFilter={commitFilter}
                 commitFileMap={commitFileMap}
+                selectedForCommit={selectedForCommit}
+                onToggleFileForCommit={onToggleFileForCommit}
               />
             </div>
           </details>
@@ -371,6 +407,8 @@ function FileRow({
   dimmed = false,
   commitFilter = null,
   commitFile,
+  selectedForCommit,
+  onToggleFileForCommit,
 }: {
   file: OrderedFile;
   isActive: boolean;
@@ -378,6 +416,8 @@ function FileRow({
   dimmed?: boolean;
   commitFilter?: string | null;
   commitFile?: CommitFile;
+  selectedForCommit?: Set<string>;
+  onToggleFileForCommit?: (path: string) => void;
 }) {
   const status = normalizeFileStatus(file);
   const { icon, colorClass } = cfStatusIcon(status);
@@ -400,17 +440,31 @@ function FileRow({
       data-path={file.path}
       onClick={dimmed ? undefined : handleClick}
     >
-      <input
-        type="checkbox"
-        className="review-check"
-        title="Mark as reviewed"
-        checked={isReviewed}
-        onChange={(e) => {
-          e.stopPropagation();
-          postMessage({ type: 'toggleReviewed', path: file.path });
-        }}
-        onClick={(e) => e.stopPropagation()}
-      />
+      {selectedForCommit ? (
+        <input
+          type="checkbox"
+          className="commit-check"
+          title="Include in commit"
+          checked={selectedForCommit.has(file.path)}
+          onChange={(e) => {
+            e.stopPropagation();
+            onToggleFileForCommit?.(file.path);
+          }}
+          onClick={(e) => e.stopPropagation()}
+        />
+      ) : (
+        <input
+          type="checkbox"
+          className="review-check"
+          title="Mark as reviewed"
+          checked={isReviewed}
+          onChange={(e) => {
+            e.stopPropagation();
+            postMessage({ type: 'toggleReviewed', path: file.path });
+          }}
+          onClick={(e) => e.stopPropagation()}
+        />
+      )}
       <span className={`status-icon ${colorClass}`} title={status}>
         {icon}
       </span>
@@ -447,10 +501,13 @@ function CommitStepper({
 
   const activeCommit = idx >= 0 ? commits[idx] : null;
 
+  const empty = total === 0;
+
   return (
     <div className="commit-stepper">
       <button
         className={`commit-stepper-all${idx === -1 ? ' active' : ''}`}
+        disabled={empty}
         onClick={() => select(null)}
         title="Show all changes"
       >
@@ -458,7 +515,7 @@ function CommitStepper({
       </button>
       <button
         className="commit-stepper-nav"
-        disabled={idx <= 0 && idx !== -1 ? false : idx === -1 ? true : false}
+        disabled={empty || (idx === -1 ? true : idx === 0)}
         onClick={() => {
           if (idx === -1) return;
           if (idx === 0) select(null);
@@ -469,7 +526,9 @@ function CommitStepper({
         ←
       </button>
       <span className="commit-stepper-label">
-        {idx === -1 ? (
+        {empty ? (
+          <span className="commit-stepper-hint">no commits yet</span>
+        ) : idx === -1 ? (
           <span className="commit-stepper-hint">step through commits →</span>
         ) : (
           <>
@@ -488,7 +547,7 @@ function CommitStepper({
       </span>
       <button
         className="commit-stepper-nav"
-        disabled={idx >= total - 1}
+        disabled={empty || idx >= total - 1}
         onClick={() => {
           const next = idx === -1 ? 0 : idx + 1;
           if (next < total) select(commits[next].commitSha!);
@@ -547,7 +606,9 @@ function PreviewFileList({ previewFiles }: { previewFiles: GhPrFile[] }) {
           })}
         </div>
         <div className="cf-locked-overlay">
-          <span className="cf-locked-message">Check out branch to see files in IDE</span>
+          <button className="cf-locked-message" onClick={() => postMessage({ type: 'checkout' })}>
+            Check out branch to see files
+          </button>
         </div>
       </div>
       {overflows && !expanded && (

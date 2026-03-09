@@ -58,7 +58,13 @@ export function ActionSection({
         </button>
         <button
           className={`dev-env-toggle-btn${devEnvOpen ? ' active' : ''}`}
-          title={isKibanaRepo ? (devEnvOpen ? 'Hide dev environment' : 'Show dev environment') : 'Only available in elastic/kibana'}
+          title={
+            isKibanaRepo
+              ? devEnvOpen
+                ? 'Hide dev environment'
+                : 'Show dev environment'
+              : 'Only available in elastic/kibana'
+          }
           disabled={!isKibanaRepo}
           onClick={() => setDevEnvOpen((v) => !v)}
         >

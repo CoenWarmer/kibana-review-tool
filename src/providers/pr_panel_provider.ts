@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import type { GitHubService, GhPullRequest, GhDiscussionComment } from '../services/github_service';
 import type { CodeOwnersService } from '../services/codeowners_service';
 import type { OrderedFile } from '../services/file_ordering_service';
+import { sortAndGroupFiles } from '../services/file_ordering_service';
 import type { ReviewOrderSuggestion } from '../services/review_order_service';
 import { log } from '../logger';
 
@@ -30,7 +31,9 @@ type InboundMessage =
   | { type: 'setTeamFilter'; team: string }
   | { type: 'openCommit'; sha: string }
   | { type: 'selectCommitFilter'; sha: string | null }
-  | { type: 'openCommitFile'; sha: string; path: string; beforePath?: string };
+  | { type: 'openCommitFile'; sha: string; path: string; beforePath?: string }
+  | { type: 'createPr' }
+  | { type: 'commitFiles'; files: string[]; message: string };
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
@@ -76,6 +79,10 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
   private cfCommitFilterFiles: Array<{ path: string; beforePath?: string; status: string }> | null =
     null;
   private cfCommitFilterLoading = false;
+
+  // ─── My Branch state ─────────────────────────────────────────────────────────
+  private myBranchBaseRef: string | null = null;
+  private myBranchCommits: GhDiscussionComment[] = [];
 
   /** PR number currently checked out on the local git branch, or null if none. */
   private _checkedOutPrNumber: number | null = null;
@@ -160,6 +167,12 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
   /** Fired when the user clicks a file row while a commit filter is active. */
   onOpenCommitFile?: (sha: string, path: string, beforePath?: string) => void;
 
+  /** Fired when the user clicks "Create PR" on the My Branch view. */
+  onCreatePr?: () => void;
+
+  /** Fired when the user commits selected files from the My Branch view. */
+  onCommitFiles?: (files: string[], message: string) => void;
+
   constructor(
     private readonly githubService: GitHubService,
     private readonly codeOwnersService: CodeOwnersService,
@@ -196,11 +209,32 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
         case 'switchTab':
           if (msg.tab === 'queue' || msg.tab === 'reviewing') {
             this.activeTab = msg.tab;
-            this.sendState({ activeTab: this.activeTab });
             if (msg.tab === 'queue') {
+              // If the user was previewing a PR that isn't checked out, reset the
+              // Reviewing pane back to the checked-out PR (or My Branch if none).
+              const viewingNonCheckedOut =
+                this.currentPr !== undefined && this.currentPr.number !== this._checkedOutPrNumber;
+              if (viewingNonCheckedOut) {
+                const checkedOut = this._checkedOutPrNumber
+                  ? this.allPrs.find((p) => p.number === this._checkedOutPrNumber)
+                  : undefined;
+                this.currentPr = checkedOut;
+                this.sendState({
+                  activeTab: 'queue',
+                  currentPr: checkedOut ?? null,
+                  discussionComments: [],
+                });
+              } else {
+                this.sendState({ activeTab: 'queue' });
+              }
               void this.refresh();
-            } else if (msg.tab === 'reviewing' && this.currentPr) {
-              this.onRefreshPR?.(this.currentPr);
+            } else {
+              this.sendState({ activeTab: this.activeTab });
+              if (msg.tab === 'reviewing' && this.currentPr) {
+                this.onRefreshPR?.(this.currentPr);
+              } else if (msg.tab === 'reviewing' && !this.currentPr) {
+                void this.loadMyBranchData();
+              }
             }
           }
           break;
@@ -300,6 +334,12 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
         case 'openCommitFile':
           this.onOpenCommitFile?.(msg.sha, msg.path, msg.beforePath);
           break;
+        case 'createPr':
+          this.onCreatePr?.();
+          break;
+        case 'commitFiles':
+          this.onCommitFiles?.(msg.files, msg.message);
+          break;
       }
     });
 
@@ -340,6 +380,130 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
     this.teamFilter = team;
     void this.fetchAndSendTeamMembers(team);
     this.sendState({ teamFilter: team });
+  }
+
+  /** Loads git diff + commits for the current branch vs its upstream base. */
+  async loadMyBranchData(): Promise<void> {
+    if (this.currentPr) return; // only relevant when no PR is active
+    const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!cwd) return;
+
+    this.cfIsLoading = true;
+    this.cfErrorMessage = '';
+    this.sendState({ cfIsLoading: true, cfErrorMessage: '' });
+
+    try {
+      const { execFile } = await import('child_process');
+      const { promisify } = await import('util');
+      const exec = promisify(execFile);
+
+      // Detect upstream base ref (e.g. "origin/main"). Fall back to "origin/main".
+      let baseRef = 'origin/main';
+      try {
+        const { stdout } = await exec('git', ['rev-parse', '--abbrev-ref', 'origin/HEAD'], {
+          cwd,
+          encoding: 'utf8',
+        });
+        const candidate = stdout.trim();
+        if (candidate) baseRef = candidate;
+      } catch {
+        // remote HEAD not set — stick with "origin/main"
+      }
+
+      // Get the merge-base commit SHA for diff viewing
+      let mergeBaseSha = baseRef;
+      try {
+        const { stdout } = await exec('git', ['merge-base', baseRef, 'HEAD'], {
+          cwd,
+          encoding: 'utf8',
+        });
+        mergeBaseSha = stdout.trim();
+      } catch {
+        // fallback: use the ref name directly
+      }
+
+      // Fetch files and commits in parallel
+      const [{ stdout: numstatOut }, { stdout: logOut }] = await Promise.all([
+        exec('git', ['diff', '--numstat', mergeBaseSha], { cwd, encoding: 'utf8' }),
+        exec('git', ['log', '--reverse', `${baseRef}..HEAD`, '--format=%h\t%s\t%aI\t%aN'], {
+          cwd,
+          encoding: 'utf8',
+        }),
+      ]);
+
+      // Parse numstat → OrderedFile[]
+      const rawFiles = numstatOut
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => {
+          const parts = line.split('\t');
+          const filePath = parts[2];
+          if (!filePath) return null;
+          return {
+            path: filePath,
+            additions: parts[0] === '-' ? 0 : parseInt(parts[0], 10),
+            deletions: parts[1] === '-' ? 0 : parseInt(parts[1], 10),
+          };
+        })
+        .filter((f): f is { path: string; additions: number; deletions: number } => f !== null);
+
+      const orderedFiles = sortAndGroupFiles(rawFiles);
+
+      // Parse git log → GhDiscussionComment[] (kind: 'commit')
+      const commits: GhDiscussionComment[] = logOut
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => {
+          const [sha, message, createdAt, author] = line.split('\t');
+          return {
+            id: `commit-${sha}`,
+            author: author ?? '',
+            body: message ?? '',
+            createdAt: createdAt ?? new Date().toISOString(),
+            kind: 'commit' as const,
+            commitSha: sha,
+          };
+        });
+
+      this.myBranchBaseRef = baseRef;
+      this.myBranchCommits = commits;
+
+      // Populate cfFiles so FilesSection + commit stepper work normally.
+      // Use 0 as a sentinel prNumber (no real PR).
+      this.cfPrNumber = 0;
+      this.cfBaseCommit = mergeBaseSha;
+      this.cfFiles = orderedFiles;
+      this.cfReviewedPaths.clear();
+      this.cfActiveFile = null;
+      this.cfIsLoading = false;
+      this.cfErrorMessage = '';
+      this.cfCommitFilter = null;
+      this.cfCommitFilterFiles = null;
+      this.cfCommitFilterLoading = false;
+
+      this.sendState({
+        cfFiles: orderedFiles,
+        cfReviewedPaths: [],
+        cfActiveFile: null,
+        cfIsLoading: false,
+        cfErrorMessage: '',
+        cfCommitFilter: null,
+        cfCommitFilterFiles: null,
+        cfCommitFilterLoading: false,
+        myBranchBaseRef: baseRef,
+        myBranchCommits: commits,
+      });
+
+      void this.precomputeOwnedPaths(orderedFiles.map((f) => f.path));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log(`[loadMyBranchData] Failed: ${msg}`);
+      this.cfIsLoading = false;
+      this.cfErrorMessage = msg;
+      this.sendState({ cfIsLoading: false, cfErrorMessage: msg });
+    }
   }
 
   private async fetchCommitFiles(sha: string): Promise<void> {
@@ -455,7 +619,7 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
    * Safe to call at any time — is a no-op if state is already clean.
    * Used defensively on startup when no PR matches the current branch.
    */
-  resetToQueue(): void {
+  resetToQueue({ loadingMyBranch = false }: { loadingMyBranch?: boolean } = {}): void {
     this.currentPr = undefined;
     this.activeTab = 'queue';
     this._checkedOutPrNumber = null;
@@ -465,7 +629,7 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
     this.cfActiveFile = null;
     this.cfReviewedPaths.clear();
     this.cfOwnedByMeFilter = null;
-    this.cfIsLoading = false;
+    this.cfIsLoading = loadingMyBranch;
     this.cfErrorMessage = '';
     this.cfSuggestedOrder = null;
     this.cfOrderMode = 'default';
@@ -473,6 +637,8 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
     this.cfCommitFilter = null;
     this.cfCommitFilterFiles = null;
     this.cfCommitFilterLoading = false;
+    this.myBranchBaseRef = null;
+    this.myBranchCommits = [];
     this.discussionComments = [];
     this.sendState({
       currentPr: null,
@@ -482,7 +648,7 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
       cfActiveFile: null,
       cfReviewedPaths: [],
       cfOwnedByMePaths: null,
-      cfIsLoading: false,
+      cfIsLoading: loadingMyBranch,
       cfErrorMessage: '',
       cfSuggestedOrder: null,
       cfOrderMode: 'default',
@@ -490,6 +656,8 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
       cfCommitFilter: null,
       cfCommitFilterFiles: null,
       cfCommitFilterLoading: false,
+      myBranchBaseRef: null,
+      myBranchCommits: [],
       discussionComments: [],
     });
   }
@@ -790,6 +958,8 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
       cfCommitFilter: this.cfCommitFilter,
       cfCommitFilterFiles: this.cfCommitFilterFiles,
       cfCommitFilterLoading: this.cfCommitFilterLoading,
+      myBranchBaseRef: this.myBranchBaseRef,
+      myBranchCommits: this.myBranchCommits,
     };
   }
 

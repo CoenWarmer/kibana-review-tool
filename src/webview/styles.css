@@ -276,9 +276,60 @@ body {
   border-bottom: 1px solid var(--vscode-actionBar-toggledBackground, #2a2a2a);
 }
 .reviewing-empty {
-  padding: 32px 16px; text-align: center;
+  padding: 16px 16px 4px;
   color: var(--vscode-descriptionForeground); font-size: 12px;
 }
+.my-branch-base-ref {
+  font-size: 10px; opacity: 0.6; margin-left: 6px;
+}
+.my-branch-actions {
+  display: flex; align-items: center; gap: 6px;
+}
+.my-branch-commit-btn {
+  width: 50%;
+  padding: 3px 10px; font-size: 12px; border-radius: 3px; cursor: pointer;
+  background: var(--vscode-button-background); color: var(--vscode-button-foreground);
+  border: none;
+}
+.my-branch-commit-btn:hover:not(:disabled) { background: var(--vscode-button-hoverBackground); }
+.my-branch-commit-btn:disabled { opacity: 0.45; cursor: default; }
+.my-branch-create-pr-btn {
+  font-size: 12px;
+  width: 50%;
+  margin-left: auto;
+  padding: 3px 10px; font-size: 11px; border-radius: 3px; cursor: pointer;
+  background: transparent; color: var(--vscode-foreground);
+  border: 1px solid var(--vscode-button-border, var(--vscode-contrastBorder, transparent));
+  opacity: 0.75;
+}
+.my-branch-create-pr-btn:hover { opacity: 1; }
+
+/* Commit dialog */
+.commit-dialog { display: flex; flex-direction: column; gap: 6px; }
+.commit-msg-input {
+  width: 100%; box-sizing: border-box; resize: vertical;
+  font-size: 12px; font-family: inherit;
+  padding: 6px 8px; border-radius: 3px;
+  background: var(--vscode-input-background); color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, transparent);
+  outline: none;
+}
+.commit-msg-input:focus { border-color: var(--vscode-focusBorder, #007fd4); }
+.commit-dialog-actions { display: flex; gap: 6px; }
+.commit-dialog-submit {
+  padding: 3px 10px; font-size: 11px; border-radius: 3px; cursor: pointer;
+  background: var(--vscode-button-background); color: var(--vscode-button-foreground);
+  border: none;
+}
+.commit-dialog-submit:hover:not(:disabled) { background: var(--vscode-button-hoverBackground); }
+.commit-dialog-submit:disabled { opacity: 0.45; cursor: default; }
+.commit-dialog-cancel {
+  padding: 3px 10px; font-size: 11px; border-radius: 3px; cursor: pointer;
+  background: transparent; color: var(--vscode-foreground);
+  border: 1px solid var(--vscode-button-border, var(--vscode-contrastBorder, transparent));
+  opacity: 0.75;
+}
+.commit-dialog-cancel:hover { opacity: 1; }
 #action-section {
   padding: 14px;
   position: sticky; bottom: 0;
@@ -789,8 +840,16 @@ hr { border: none; border-top: 1px solid var(--vscode-widget-border, #444); marg
   letter-spacing: 0.04em; color: var(--vscode-descriptionForeground);
   white-space: nowrap; flex-shrink: 0;
 }
-#files-section {}
-.cf-toolbar { margin-bottom: 8px; }
+
+.cf-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  margin-left: -14px;
+  margin-right: -14px;
+  padding: 0 14px;
+  background: var(--vscode-sideBar-background, #1e1e1e);
+}
 .cf-toolbar-row { display: flex; align-items: center; gap: 5px; padding: 5px 0 4px; }
 .cf-search {
   flex: 1; min-width: 0; font-size: 11px;
@@ -845,6 +904,7 @@ hr { border: none; border-top: 1px solid var(--vscode-widget-border, #444); marg
   padding: 6px;
   font-size: 11px;
   flex-shrink: 0;
+  margin-top: 4px;
   background: var(--vscode-textCodeBlock-background);
   border-bottom: solid 1px var(--vscode-widget-border, #444);
   border-radius: 3px 3px 0 0;
@@ -893,10 +953,13 @@ hr { border: none; border-top: 1px solid var(--vscode-widget-border, #444); marg
 }
 .cf-locked-message {
   font-size: 12px; font-weight: 500;
-  color: var(--vscode-foreground);
   background: var(--vscode-badge-background);
   color: var(--vscode-badge-foreground);
   padding: 6px 12px; border-radius: 4px;
+  border: none; cursor: pointer;
+}
+.cf-locked-message:hover {
+  filter: brightness(1.15);
 }
 
 /* Folder tree */

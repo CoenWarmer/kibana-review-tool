@@ -144,6 +144,12 @@ export interface AppState {
   /** False until the startup PR-restore check has completed. Used to suppress the tab label flicker. */
   prRestoreComplete: boolean;
 
+  // My Branch (no PR checked out)
+  /** Display name of the base ref used for the local diff, e.g. "origin/main". */
+  myBranchBaseRef: string | null;
+  /** Commits on the current branch ahead of the base ref. */
+  myBranchCommits: GhDiscussionComment[];
+
   // Commit stepper
   /** SHA of the commit selected in the stepper; null = "All changes" mode. */
   cfCommitFilter: string | null;
@@ -183,4 +189,6 @@ export type InboundMessage =
   | { type: 'setTeamFilter'; team: string }
   | { type: 'openCommit'; sha: string }
   | { type: 'selectCommitFilter'; sha: string | null }
-  | { type: 'openCommitFile'; sha: string; path: string; beforePath?: string };
+  | { type: 'openCommitFile'; sha: string; path: string; beforePath?: string }
+  | { type: 'createPr' }
+  | { type: 'commitFiles'; files: string[]; message: string };

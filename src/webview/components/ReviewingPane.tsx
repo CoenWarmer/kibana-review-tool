@@ -27,6 +27,8 @@ type ReviewingPaneProps = Pick<
   | 'cfCommitFilter'
   | 'cfCommitFilterFiles'
   | 'cfCommitFilterLoading'
+  | 'myBranchBaseRef'
+  | 'myBranchCommits'
   | 'esStatus'
   | 'kibanaStatus'
   | 'checkedOutPrNumber'
@@ -64,11 +66,49 @@ export function ReviewingPane({
   cfCommitFilter,
   cfCommitFilterFiles,
   cfCommitFilterLoading,
+  myBranchBaseRef,
+  myBranchCommits,
   discussionComments,
   repo,
   synthtraceScenarios,
 }: ReviewingPaneProps) {
   const repoUrl = `https://github.com/${repo}`;
+
+  // ── My Branch: commit file selection ──────────────────────────────────────
+  const [selectedForCommit, setSelectedForCommit] = useState<Set<string>>(new Set());
+  const [commitDialogOpen, setCommitDialogOpen] = useState(false);
+  const [commitMsg, setCommitMsg] = useState('');
+  const commitMsgRef = useRef<HTMLTextAreaElement>(null);
+
+  // Reset selection when the file list changes (e.g. after a commit refreshes data)
+  useEffect(() => {
+    setSelectedForCommit(new Set());
+    setCommitDialogOpen(false);
+    setCommitMsg('');
+  }, [cfFiles]);
+
+  const toggleFileForCommit = (path: string) => {
+    setSelectedForCommit((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  };
+
+  const openCommitDialog = () => {
+    setCommitDialogOpen(true);
+    // Focus the textarea on next tick
+    setTimeout(() => commitMsgRef.current?.focus(), 0);
+  };
+
+  const submitCommit = () => {
+    const msg = commitMsg.trim();
+    if (!msg || selectedForCommit.size === 0) return;
+    postMessage({ type: 'commitFiles', files: [...selectedForCommit], message: msg });
+    setCommitDialogOpen(false);
+    setCommitMsg('');
+  };
 
   // Buildkite data lives in discussion comments posted by elasticmachine, not the PR body.
   // Scan all comment bodies (the bot edits its comment in-place, so the last one wins).
@@ -76,12 +116,85 @@ export function ReviewingPane({
 
   if (!currentPr) {
     return (
-      <div className="reviewing-empty">
-        <p>
-          You're on branch <code>{currentBranch ?? 'unknown'}</code> which looks like it's not part
-          of a PR.
-        </p>
-        <p>Select a PR from the Review Queue to see its description here.</p>
+      <div className="reviewing-content">
+        <div className="reviewing-empty">
+          <p>
+            You&apos;re on branch <code>{currentBranch ?? 'unknown'}</code> which doesn&apos;t look
+            like it&apos;s part of a PR by another author.
+          </p>
+        </div>
+        <div id="files-section" className="section">
+          <FilesSection
+            files={cfFiles}
+            activeFile={cfActiveFile}
+            reviewedPaths={cfReviewedPaths}
+            ownedByMePaths={null}
+            isLoading={cfIsLoading}
+            errorMessage={cfErrorMessage}
+            suggestedOrder={cfSuggestedOrder}
+            orderMode={cfOrderMode}
+            isOrderLoading={cfIsOrderLoading}
+            isCheckedOut={true}
+            commits={myBranchCommits}
+            commitFilter={cfCommitFilter}
+            commitFilterFiles={cfCommitFilterFiles}
+            commitFilterLoading={cfCommitFilterLoading}
+            selectedForCommit={selectedForCommit}
+            onToggleFileForCommit={toggleFileForCommit}
+          />
+        </div>
+        <div id="action-section" className="section">
+          {commitDialogOpen ? (
+            <div className="commit-dialog">
+              <textarea
+                ref={commitMsgRef}
+                className="commit-msg-input"
+                placeholder="Commit message…"
+                value={commitMsg}
+                rows={3}
+                onChange={(e) => setCommitMsg(e.target.value)}
+                onKeyDown={(e) => {
+                  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') submitCommit();
+                  if (e.key === 'Escape') setCommitDialogOpen(false);
+                }}
+              />
+              <div className="commit-dialog-actions">
+                <button
+                  className="commit-dialog-submit"
+                  disabled={!commitMsg.trim() || selectedForCommit.size === 0}
+                  onClick={submitCommit}
+                  title="Commit selected files (⌘↵)"
+                >
+                  Commit {selectedForCommit.size} file{selectedForCommit.size !== 1 ? 's' : ''}
+                </button>
+                <button className="commit-dialog-cancel" onClick={() => setCommitDialogOpen(false)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="my-branch-actions">
+              <button
+                className="my-branch-commit-btn"
+                disabled={selectedForCommit.size === 0}
+                title={
+                  selectedForCommit.size === 0
+                    ? 'Select files to commit'
+                    : `Commit ${selectedForCommit.size} selected file${selectedForCommit.size !== 1 ? 's' : ''}`
+                }
+                onClick={openCommitDialog}
+              >
+                Commit {selectedForCommit.size > 0 ? `${selectedForCommit.size} ` : ''}files
+              </button>
+              <button
+                className="my-branch-create-pr-btn"
+                onClick={() => postMessage({ type: 'createPr' })}
+              >
+                Create PR ↗
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
