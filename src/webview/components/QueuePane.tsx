@@ -277,6 +277,7 @@ function PrCard({
   onSeen: (n: number) => void;
 }) {
   const memberSet = new Set(teamFilterMembers);
+  const isTeamAuthor = teamFilterMembers.length > 0 && memberSet.has(pr.author.login);
 
   // Reviews submitted by team members (excluding PENDING)
   const teamReviews =
@@ -307,6 +308,14 @@ function PrCard({
       <div className="pr-bottom-row">
         <span className="age">
           {ageLabel(pr.createdAt)} - @{pr.author.login}
+          {teamFilterMembers.length > 0 && (
+            <span
+              className={`pr-author-badge${isTeamAuthor ? ' pr-author-badge--team' : ' pr-author-badge--external'}`}
+              title={isTeamAuthor ? 'Author is a team member' : 'Author is not a team member'}
+            >
+              {isTeamAuthor ? 'team' : 'external'}
+            </span>
+          )}
         </span>
         {(teamReviews.length > 0 || teamAssignees.length > 0) && (
           <span className="pr-team-reviewers">
