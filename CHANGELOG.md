@@ -3,6 +3,7 @@
 ## [0.1.9] - 2026-03-09
 
 ### Added
+- **Author team membership badge**: each PR card in the Review Queue shows a small `team` (blue) or `external` (grey) pill badge next to the author login when a team filter is active, indicating whether the PR author is a member of the selected team
 - **Commit stepper in Changed Files**: a stepper bar above the file list lets you step through each commit in a PR chronologically; defaults to "All" mode showing the full PR diff; selecting a commit dims (0.45 opacity, non-clickable) files not touched by that commit, and highlights touched files with their commit-specific `+additions -deletions` counts
 - **Per-commit diff from file list**: clicking a touched file while a commit is selected opens a side-by-side diff scoped to that commit (reuses the existing `pr-base://commit-base/` / `pr-base://commit-head/` URI scheme); handles renamed files
 - **Commit-only files in stepper**: files that were added and later deleted within the same PR (net-zero, absent from GitHub's PR diff) are injected as extra rows when the commit that deleted them is selected
