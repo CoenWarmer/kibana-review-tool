@@ -17,30 +17,42 @@ interface Props {
   teamFilterMembers: string[];
 }
 
-type Bucket = 'unreviewed' | 'in-review' | 'approved';
+type Bucket = 'unreviewed' | 'in-review-by-you' | 'in-review' | 'approved';
 
 /**
  * Classify a PR into a bucket.
  *
- * When a team is selected and its member logins are known, the classification
- * is scoped to that team:
- *  - "In review"  — at least one team member has a non-pending review, OR the PR
- *                   is assigned to a team member.
- *  - "Unreviewed" — no team member has reviewed or is assigned yet.
+ * Priority (highest wins):
+ *  1. "Approved"          — team has approved (or reviewDecision === APPROVED).
+ *  2. "In review by you"  — the current user has a COMMENTED or CHANGES_REQUESTED
+ *                           review on this PR (they've started, not finished).
+ *  3. "In review"         — at least one other team member has a non-pending review,
+ *                           OR the PR is assigned to a team member.
+ *  4. "Unreviewed"        — no team activity yet.
  *
- * Without a team filter (or before members are fetched) the generic
- * isReviewInProgress heuristic is used as a fallback.
+ * When a team is selected and its member logins are known, "Approved" and
+ * "In review" are scoped to that team; "In review by you" always uses the
+ * current user regardless of team filter.
  */
-function classifyPr(pr: GhPullRequest, teamMembers: string[]): Bucket {
+function classifyPr(pr: GhPullRequest, teamMembers: string[], currentUserLogin: string): Bucket {
+  const allReviews = pr.latestReviews ?? [];
+
   if (teamMembers.length > 0) {
-    // Team-scoped classification: bucket is determined solely by what members of
-    // the selected team have done — the aggregate reviewDecision is irrelevant
-    // because other teams may have approved while this team hasn't reviewed yet.
     const memberSet = new Set(teamMembers);
-    const teamReviews = (pr.latestReviews ?? []).filter(
+    const teamReviews = allReviews.filter(
       (r) => r.state !== 'PENDING' && memberSet.has(r.author.login)
     );
     if (teamReviews.some((r) => r.state === 'APPROVED')) return 'approved';
+
+    // "In review by you" — current user has a non-approved, non-pending review.
+    if (currentUserLogin) {
+      const myReview = allReviews.find(
+        (r) =>
+          r.author.login === currentUserLogin && r.state !== 'PENDING' && r.state !== 'APPROVED'
+      );
+      if (myReview) return 'in-review-by-you';
+    }
+
     const hasTeamAssignee = (pr.assignees ?? []).some((a) => memberSet.has(a.login));
     if (teamReviews.length > 0 || hasTeamAssignee) return 'in-review';
     return 'unreviewed';
@@ -48,6 +60,14 @@ function classifyPr(pr: GhPullRequest, teamMembers: string[]): Bucket {
 
   // Fallback: generic heuristic (no team selected, or members not yet fetched)
   if (pr.reviewDecision === 'APPROVED') return 'approved';
+
+  if (currentUserLogin) {
+    const myReview = allReviews.find(
+      (r) => r.author.login === currentUserLogin && r.state !== 'PENDING' && r.state !== 'APPROVED'
+    );
+    if (myReview) return 'in-review-by-you';
+  }
+
   if (isReviewInProgress(pr) || pr.reviewDecision === 'CHANGES_REQUESTED') return 'in-review';
   return 'unreviewed';
 }
@@ -55,10 +75,11 @@ function classifyPr(pr: GhPullRequest, teamMembers: string[]): Bucket {
 const byNewest = (a: GhPullRequest, b: GhPullRequest) =>
   new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
 
-const BUCKETS: { key: Bucket; label: string }[] = [
-  { key: 'unreviewed', label: 'Unreviewed' },
-  { key: 'in-review', label: 'In review' },
-  { key: 'approved', label: 'Approved' },
+const BUCKETS: { key: Bucket; label: string; teamSuffix: boolean }[] = [
+  { key: 'in-review-by-you', label: 'In review by you', teamSuffix: false },
+  { key: 'unreviewed', label: 'Unreviewed', teamSuffix: true },
+  { key: 'in-review', label: 'In review', teamSuffix: true },
+  { key: 'approved', label: 'Approved', teamSuffix: true },
 ];
 
 const SEEN_KEY = 'elastic-pr-reviewer.seenPrs';
@@ -113,6 +134,7 @@ export function QueuePane({
 
   const [collapsed, setCollapsed] = useState<Record<Bucket, boolean>>({
     unreviewed: false,
+    'in-review-by-you': false,
     'in-review': false,
     approved: false,
   });
@@ -150,11 +172,13 @@ export function QueuePane({
   const teamLabel = teamFilter ? teamFilter.replace(/^@[^/]+\//, '') : null;
 
   const total = visible.length;
-  const buckets = BUCKETS.map(({ key, label }) => ({
+  const buckets = BUCKETS.map(({ key, label, teamSuffix }) => ({
     key,
-    label: teamLabel ? `${label} by ${teamLabel}` : label,
+    label: teamLabel && teamSuffix ? `${label} by ${teamLabel}` : label,
     prs: visible
-      .filter((pr) => classifyPr(pr, teamFilterMembers) === key && matchesSearch(pr))
+      .filter(
+        (pr) => classifyPr(pr, teamFilterMembers, currentUserLogin) === key && matchesSearch(pr)
+      )
       .sort(byNewest),
   }));
   const totalFiltered = buckets.reduce((n, b) => n + b.prs.length, 0);
