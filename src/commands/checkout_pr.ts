@@ -44,18 +44,19 @@ export async function loadPRData(
   };
 
   report('Loading PR details…');
-  const detail = await ctx.githubService.getPullRequestDetail(prNumber);
+  // Fetch PR detail and wait for the webview to be ready in parallel — both
+  // are independent and the webview is typically already resolved on startup.
+  const [detail] = await Promise.all([
+    ctx.githubService.getPullRequestDetail(prNumber),
+    ctx.prDescriptionProvider.viewReady,
+  ]);
   log(`[loadPRData] Got detail: ${detail.files.length} files`);
 
-  // Wait for the description webview to be initialised before setting data.
-  // On a fresh extension host start the webview may not yet have been resolved.
-  log('[loadPRData] Waiting for description webview to be ready…');
-  await ctx.prDescriptionProvider.viewReady;
   log('[loadPRData] viewReady resolved — setting PR');
   ctx.prDescriptionProvider.setPR(detail);
 
-  report('Fetching base commit…');
-  const baseCommit = await ctx.githubService.getPRBaseCommit(prNumber);
+  // baseRefOid is now included in the PR detail; no separate API call needed.
+  const baseCommit = detail.baseRefOid ?? (await ctx.githubService.getPRBaseCommit(prNumber));
   log(`[loadPRData] baseCommit = ${baseCommit}`);
 
   const ordered = sortAndGroupFiles(detail.files);
@@ -233,15 +234,17 @@ async function deleteLocalBranch(branch: string, cwd: string | undefined): Promi
 }
 
 async function pruneRemotes(cwd: string | undefined): Promise<void> {
-  for (const remote of ['upstream', 'origin']) {
-    try {
-      log(`git remote prune ${remote}`);
-      await execFileAsync('git', ['remote', 'prune', remote], { cwd });
-      log(`  pruned ${remote}`);
-    } catch {
-      log(`  could not prune ${remote} (remote may not exist)`);
-    }
-  }
+  await Promise.all(
+    ['upstream', 'origin'].map(async (remote) => {
+      try {
+        log(`git remote prune ${remote}`);
+        await execFileAsync('git', ['remote', 'prune', remote], { cwd });
+        log(`  pruned ${remote}`);
+      } catch {
+        log(`  could not prune ${remote} (remote may not exist)`);
+      }
+    })
+  );
 }
 
 /**

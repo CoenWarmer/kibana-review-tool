@@ -114,6 +114,10 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
   private synthtraceScenarios: string[] = [];
   private teamFilterMembers: string[] = [];
 
+  // ─── Refresh throttle ───────────────────────────────────────────────────────
+  private lastRefreshMs = 0;
+  private readonly REFRESH_THROTTLE_MS = 15_000;
+
   // ─── Checkout button state ──────────────────────────────────────────────────
   private checkoutBusy = false;
   private checkoutStage = '';
@@ -682,8 +686,15 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
     this.sendState();
   }
 
-  async refresh(): Promise<void> {
+  async refresh(force = false): Promise<void> {
     if (this.wrongRepo || this.isLoading) return;
+
+    const now = Date.now();
+    if (!force && now - this.lastRefreshMs < this.REFRESH_THROTTLE_MS) {
+      log(`--- PR list refresh skipped (throttled, ${now - this.lastRefreshMs}ms since last) ---`);
+      return;
+    }
+    this.lastRefreshMs = now;
 
     log('--- PR list refresh started ---');
     this.isLoading = true;
@@ -891,6 +902,8 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
       await this.githubService.postComment(prNumber, body);
       void this.view?.webview.postMessage({ type: 'commentPosted' });
       void vscode.window.showInformationMessage(`Comment posted on PR #${prNumber}.`);
+      // Invalidate cache so the next detail fetch gets fresh data from GitHub.
+      this.githubService.invalidateDetailCache(prNumber);
       void this.fetchAndUpdateDetail(prNumber);
     } catch (err) {
       void vscode.window.showErrorMessage(
@@ -909,6 +922,8 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
       await this.githubService.submitReview(prNumber, event, body);
       void this.view?.webview.postMessage({ type: 'reviewSubmitted', event });
       void vscode.window.showInformationMessage(`${label} submitted on PR #${prNumber}.`);
+      // Invalidate cache so the next detail fetch gets fresh data from GitHub.
+      this.githubService.invalidateDetailCache(prNumber);
       void this.fetchAndUpdateDetail(prNumber);
     } catch (err) {
       void vscode.window.showErrorMessage(

@@ -381,15 +381,24 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     log(`[refreshFilesAndComments] Refreshing PR #${prNumber}…`);
     changedFilesProvider.setLoading(prNumber);
     try {
-      const [detail, baseCommit] = await Promise.all([
+      // Fetch PR detail and inline comments in parallel.
+      // baseRefOid is now included in the detail, removing the need for a separate
+      // getPRBaseCommit API call (falls back if the field is somehow absent).
+      const [detail, lineComments] = await Promise.all([
         githubService.getPullRequestDetail(prNumber),
-        githubService.getPRBaseCommit(prNumber),
+        githubService.getLineComments(prNumber).catch((err) => {
+          logError(
+            `Failed to load inline comments: ${err instanceof Error ? err.message : String(err)}`
+          );
+          return [] as import('./services/github_service').GhPRLineComment[];
+        }),
       ]);
+      const baseCommit = detail.baseRefOid ?? (await githubService.getPRBaseCommit(prNumber));
       const ordered = sortAndGroupFiles(detail.files);
       changedFilesProvider.setFiles(prNumber, baseCommit, ordered);
       statusBarItem.text = `$(git-pull-request) PR #${prNumber}`;
       statusBarItem.tooltip = `Currently reviewing: #${prNumber} — ${detail.title}`;
-      await loadCommentThreads(prNumber, baseCommit);
+      await loadCommentThreads(prNumber, baseCommit, lineComments);
       log(`[refreshFilesAndComments] Done — ${ordered.length} file(s), comments reloaded`);
     } catch (err) {
       logError(
@@ -399,18 +408,26 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   }
 
-  async function loadCommentThreads(prNumber: number, baseCommit: string): Promise<void> {
+  async function loadCommentThreads(
+    prNumber: number,
+    baseCommit: string,
+    preloadedComments?: import('./services/github_service').GhPRLineComment[]
+  ): Promise<void> {
     clearCommentThreads();
     log(`Loading inline comments for PR #${prNumber}…`);
 
     let comments: import('./services/github_service').GhPRLineComment[];
-    try {
-      comments = await githubService.getLineComments(prNumber);
-    } catch (err) {
-      logError(
-        `Failed to load inline comments: ${err instanceof Error ? err.message : String(err)}`
-      );
-      return;
+    if (preloadedComments) {
+      comments = preloadedComments;
+    } else {
+      try {
+        comments = await githubService.getLineComments(prNumber);
+      } catch (err) {
+        logError(
+          `Failed to load inline comments: ${err instanceof Error ? err.message : String(err)}`
+        );
+        return;
+      }
     }
 
     log(`Fetched ${comments.length} inline comment(s)`);
@@ -471,10 +488,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // ─── Commands ──────────────────────────────────────────────────────────────
 
-  // Refresh PR list
+  // Refresh PR list (user-initiated — always bypass throttle)
   context.subscriptions.push(
     vscode.commands.registerCommand('elastic-pr-reviewer.refresh', async () => {
-      await prPanelProvider.refresh();
+      await prPanelProvider.refresh(true);
     })
   );
 
@@ -827,10 +844,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           .getConfiguration('elastic-pr-reviewer')
           .get<string>('repo', 'elastic/kibana');
         Object.assign(githubService, new GitHubService(newRepo));
-        void prPanelProvider.refresh();
+        void prPanelProvider.refresh(true);
       }
       if (e.affectsConfiguration('elastic-pr-reviewer.userTeams')) {
-        void prPanelProvider.refresh();
+        void prPanelProvider.refresh(true);
       }
     })
   );
@@ -845,7 +862,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
 
   // ─── Initial load ──────────────────────────────────────────────────────────
-  void prPanelProvider.refresh();
+  void prPanelProvider.refresh(true);
 
   // ─── Branch-based PR restore ───────────────────────────────────────────────
   void (async () => {
