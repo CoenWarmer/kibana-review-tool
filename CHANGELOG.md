@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.11] - 2026-03-09
+
+### Added
+- **Commit files in My Branch view**: file rows in the "My Branch" view now show checkboxes for selecting files to include in a commit; a "Commit files" button opens an inline commit-message textarea; submitting runs `git add` + `git commit` and refreshes the file list; supports `⌘↵` / `Ctrl↵` to submit and `Escape` to cancel
+- **Sticky Changed Files toolbar**: the search, filter, suggest-order, and commit-stepper toolbar now sticks to the top of the panel when scrolling through a long file list
+- **"Check out branch" overlay is now a button**: the semi-transparent overlay on unreviewed PRs now shows a clickable "Check out branch to see files" button that triggers the checkout flow directly
+- **Commit stepper shown with zero commits**: the stepper bar is always visible in the Changed Files section; when there are no commits yet it shows "no commits yet" with all nav buttons disabled
+
+### Changed
+- **Reviewing pane resets on queue tab switch**: when the user switches to the Review Queue tab after previewing a PR that is not checked out, the Reviewing pane automatically resets to the correct state — "My Branch" if no PR is checked out, or the currently checked-out PR otherwise
+- **"Suggest review order" works in My Branch mode**: the button no longer requires a checked-out PR; it runs against the local branch's files and diffs against the working tree (including uncommitted changes)
+
+---
+
 ## [0.1.9] - 2026-03-09
 
 ### Added
