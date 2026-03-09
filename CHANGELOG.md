@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.12] - 2026-03-09
+
+### Fixed
+- **Review Queue tab count matches visible list**: the count in the "Review Queue (N)" tab title now applies the same team, draft, and own-PR filters as the list itself, so it always matches the "N / N PRs" summary shown in the pane
+- **PRs reviewed by team members stay visible**: PRs where a colleague has already reviewed were silently dropped from the queue because GitHub removes a PR from `team-review-requested:` results once any team member submits a review; the extension now also queries `reviewed-by:<member>` for all members of the selected team so those PRs remain visible in the correct bucket
+- **React hooks order crash in FilesSection**: a `useCallback` placed after an early return caused React to see a different number of hooks between renders, crashing the panel; the hook is now unconditionally called before any early return
+- **`currentBranch` accessibility error**: `PrPanelProvider.currentBranch` was marked `private`, preventing `extension.ts` from reading it for the "Create PR" flow; the modifier has been removed
+- **`reviewers` typo in `TeamReviewInfo`**: a duplicate `reviewer` key in the `IN_PROGRESS` status object (second entry was meant to be `reviewers`) caused a TypeScript error and silently dropped the full reviewer list at runtime
+
+### Changed
+- **"My Branch" description**: the message shown when on a local branch is now "You're on `<branch>`. Ready to open a PR when you are." — more concise and action-oriented
+
+---
+
 ## [0.1.11] - 2026-03-09
 
 ### Added
