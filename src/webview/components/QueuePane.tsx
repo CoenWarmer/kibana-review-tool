@@ -199,11 +199,7 @@ export function QueuePane({
 
         <button
           className={`icon-btn${showOwnPrs ? ' active' : ''}`}
-          title={
-            showOwnPrs
-              ? 'Showing your own PRs — click to hide'
-              : 'Your own PRs are hidden — click to show'
-          }
+          title={showOwnPrs ? 'Including your own PRs' : 'Excluding your own PRs'}
           disabled={!currentUserLogin}
           onClick={() => {
             const next = !showOwnPrs;
@@ -215,7 +211,7 @@ export function QueuePane({
             }
           }}
         >
-          {showOwnPrs ? '👤' : '🚫👤'}
+          👤
         </button>
       </div>
 
@@ -237,8 +233,8 @@ export function QueuePane({
                   aria-expanded={!collapsed[key]}
                 >
                   <span className="pr-bucket-chevron">{collapsed[key] ? '▶' : '▼'}</span>
-                  {label}
                   <span className="pr-bucket-count">{prs.length}</span>
+                  {label}
                 </div>
                 {!collapsed[key] &&
                   prs.map((pr) => (

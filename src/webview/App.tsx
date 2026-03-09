@@ -39,6 +39,9 @@ const initialState: AppState = {
   synthtraceScenarios: [],
   wrongRepo: false,
   prRestoreComplete: false,
+  cfCommitFilter: null,
+  cfCommitFilterFiles: null,
+  cfCommitFilterLoading: false,
 };
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
@@ -163,6 +166,9 @@ export function App() {
           cfSuggestedOrder={state.cfSuggestedOrder}
           cfOrderMode={state.cfOrderMode}
           cfIsOrderLoading={state.cfIsOrderLoading}
+          cfCommitFilter={state.cfCommitFilter}
+          cfCommitFilterFiles={state.cfCommitFilterFiles}
+          cfCommitFilterLoading={state.cfCommitFilterLoading}
           esStatus={state.esStatus}
           kibanaStatus={state.kibanaStatus}
           checkedOutPrNumber={state.checkedOutPrNumber}

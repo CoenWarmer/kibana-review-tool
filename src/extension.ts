@@ -9,7 +9,12 @@ import { ServerStatusService } from './services/server_status_service';
 import { suggestReviewOrder } from './services/review_order_service';
 import { PrPanelProvider } from './providers/pr_panel_provider';
 import { checkoutPR, loadPRData, disposeTerminal } from './commands/checkout_pr';
-import { openDiff, openCommitInIde, GitBaseContentProvider } from './commands/open_diff';
+import {
+  openDiff,
+  openCommitInIde,
+  openCommitFileDiff,
+  GitBaseContentProvider,
+} from './commands/open_diff';
 import { initLogger, log, logError } from './logger';
 
 /**
@@ -262,6 +267,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   prPanelProvider.onOpenCommit = (sha) => {
     void openCommitInIde(sha);
+  };
+
+  prPanelProvider.onOpenCommitFile = (sha, path, beforePath) => {
+    void openCommitFileDiff(sha, path, beforePath ?? path);
   };
 
   // ─── Git base content provider ─────────────────────────────────────────────
@@ -636,7 +645,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
       if (key) {
         await context.secrets.store('elastic-pr-reviewer.llmApiKey', key);
-        void vscode.window.showInformationMessage(`Elastic PR Reviewer: ${provider} API key saved.`);
+        void vscode.window.showInformationMessage(
+          `Elastic PR Reviewer: ${provider} API key saved.`
+        );
       }
     })
   );

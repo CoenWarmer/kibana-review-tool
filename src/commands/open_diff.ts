@@ -122,6 +122,31 @@ export class GitBaseContentProvider implements vscode.TextDocumentContentProvide
 }
 
 /**
+ * Opens a side-by-side diff for a specific file within a commit, without a
+ * QuickPick. Used when the user clicks a file row while the commit stepper is
+ * active.
+ *
+ * @param sha       Short or full commit SHA
+ * @param afterPath Path of the file in the commit (after version)
+ * @param beforePath Path of the file in the parent commit (before version);
+ *                   equals afterPath for non-renames
+ */
+export async function openCommitFileDiff(
+  sha: string,
+  afterPath: string,
+  beforePath: string
+): Promise<void> {
+  const beforeUri = vscode.Uri.parse(
+    `pr-base://commit-base/${sha}/${encodeURIComponent(beforePath)}`
+  );
+  const afterUri = vscode.Uri.parse(
+    `pr-base://commit-head/${sha}/${encodeURIComponent(afterPath)}`
+  );
+  const title = `${sha}: ${path.basename(afterPath)}`;
+  await vscode.commands.executeCommand('vscode.diff', beforeUri, afterUri, title);
+}
+
+/**
  * Opens a QuickPick with all files changed in the given commit. When the user
  * selects a file, opens a side-by-side diff of parent vs commit version.
  */
@@ -196,17 +221,13 @@ export async function openCommitInIde(sha: string): Promise<void> {
   const beforeUri =
     file.status === 'A'
       ? vscode.Uri.parse(`pr-base://empty/${encodeURIComponent(file.before)}`)
-      : vscode.Uri.parse(
-          `pr-base://commit-base/${sha}/${encodeURIComponent(file.before)}`
-        );
+      : vscode.Uri.parse(`pr-base://commit-base/${sha}/${encodeURIComponent(file.before)}`);
 
   // After side: commit version (empty for deleted files)
   const afterUri =
     file.status === 'D'
       ? vscode.Uri.parse(`pr-base://empty/${encodeURIComponent(file.after)}`)
-      : vscode.Uri.parse(
-          `pr-base://commit-head/${sha}/${encodeURIComponent(file.after)}`
-        );
+      : vscode.Uri.parse(`pr-base://commit-head/${sha}/${encodeURIComponent(file.after)}`);
 
   const title = `${sha}: ${path.basename(file.after)}`;
   await vscode.commands.executeCommand('vscode.diff', beforeUri, afterUri, title);

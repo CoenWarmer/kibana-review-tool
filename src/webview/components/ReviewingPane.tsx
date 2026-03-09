@@ -24,6 +24,9 @@ type ReviewingPaneProps = Pick<
   | 'cfSuggestedOrder'
   | 'cfOrderMode'
   | 'cfIsOrderLoading'
+  | 'cfCommitFilter'
+  | 'cfCommitFilterFiles'
+  | 'cfCommitFilterLoading'
   | 'esStatus'
   | 'kibanaStatus'
   | 'checkedOutPrNumber'
@@ -58,6 +61,9 @@ export function ReviewingPane({
   cfSuggestedOrder,
   cfOrderMode,
   cfIsOrderLoading,
+  cfCommitFilter,
+  cfCommitFilterFiles,
+  cfCommitFilterLoading,
   discussionComments,
   repo,
   synthtraceScenarios,
@@ -114,6 +120,10 @@ export function ReviewingPane({
           isOrderLoading={cfIsOrderLoading}
           previewFiles={currentPr.files}
           isCheckedOut={currentPr.number === checkedOutPrNumber}
+          commits={discussionComments.filter((c) => c.kind === 'commit')}
+          commitFilter={cfCommitFilter}
+          commitFilterFiles={cfCommitFilterFiles}
+          commitFilterLoading={cfCommitFilterLoading}
         />
       </div>
       <div className="section">

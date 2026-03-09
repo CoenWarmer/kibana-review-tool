@@ -3,6 +3,7 @@ import { postMessage } from '../vscode';
 import { ageLabel } from '../utils';
 import type { GhDiscussionComment } from '../types';
 import { MarkdownBody } from './MarkdownBody';
+import { CommitLabel } from './CommitLabel';
 
 const HIDDEN_USERS_KEY = 'disc-hidden-users';
 
@@ -215,7 +216,6 @@ function DiscussionComment({
   repoUrl: string;
 }) {
   if (c.kind === 'commit') {
-    const firstLine = c.body.split('\n')[0];
     return (
       <div className="disc-commit">
         <span className="disc-avatar disc-avatar-sm">
@@ -227,17 +227,7 @@ function DiscussionComment({
         </span>
         <span className="disc-commit-author">{c.author}</span>
         <span className="disc-commit-label">pushed</span>
-        <button
-          className="disc-commit-sha"
-          title={`Open commit ${c.commitSha} in IDE`}
-          onClick={() => postMessage({ type: 'openCommit', sha: c.commitSha! })}
-        >
-          {c.commitSha}
-        </button>
-        <span className="disc-commit-msg-wrap">
-          <span className="disc-commit-msg">{firstLine}</span>
-          {c.body !== firstLine && <span className="disc-commit-tooltip">{c.body}</span>}
-        </span>
+        <CommitLabel sha={c.commitSha!} message={c.body} />
         <span className="disc-age disc-commit-age">{ageLabel(c.createdAt)}</span>
       </div>
     );

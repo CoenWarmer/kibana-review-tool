@@ -144,7 +144,7 @@ body {
   height: 24px;
 }
 .icon-btn:hover { opacity: 1; border-color: var(--vscode-input-border, #555); }
-.icon-btn.active { opacity: 1; }
+.icon-btn.active { opacity: 1; background: var(--vscode-button-background); }
 
 .status {
   padding: 20px 12px; font-size: 12px;
@@ -831,6 +831,47 @@ hr { border: none; border-top: 1px solid var(--vscode-widget-border, #444); marg
 }
 .cf-file-list { overflow-y: visible; background: var(--vscode-textCodeBlock-background); padding: 8px 4px; }
 .cf-file-list-wrapper { padding-bottom: 24px; }
+
+/* Commit stepper */
+.commit-stepper {
+  display: flex; align-items: center; gap: 4px;
+  padding: 6px;
+  font-size: 11px;
+  flex-shrink: 0;
+  background: var(--vscode-textCodeBlock-background);
+  border-bottom: solid 1px var(--vscode-widget-border, #444);
+  border-radius: 3px 3px 0 0;
+}
+.commit-stepper-all {
+  padding: 2px 8px; border-radius: 3px; border: 1px solid var(--vscode-button-border, transparent);
+  background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground);
+  cursor: pointer; font-size: 11px; white-space: nowrap;
+  height: 24px;
+}
+.commit-stepper-all.active {
+  background: var(--vscode-button-background); color: var(--vscode-button-foreground);
+}
+.commit-stepper-nav {
+  width: 22px; height: 22px; border-radius: 3px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground);
+  cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.commit-stepper-nav:disabled { opacity: 0.35; cursor: default; }
+.commit-stepper-nav:not(:disabled):hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+.commit-stepper-label {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px;
+}
+.commit-stepper-hint { opacity: 0.5; }
+.commit-stepper-pos { opacity: 0.6; white-space: nowrap; flex-shrink: 0; }
+
+/* Dimmed file rows when a commit is selected */
+.cf-file-dimmed {
+  opacity: 0.45; pointer-events: none;
+}
 .cf-file-list-wrapper.cf-locked { position: relative; }
 .cf-file-list-wrapper.cf-locked[style*="max-height"] {
   -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 36px), transparent 100%);

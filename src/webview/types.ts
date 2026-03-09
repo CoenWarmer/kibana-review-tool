@@ -82,6 +82,17 @@ export interface ReviewOrderSuggestion {
 
 export type OrderMode = 'default' | 'top-down' | 'bottom-up';
 
+/** A file changed by a single commit, used when the commit stepper is active. */
+export interface CommitFile {
+  path: string;
+  /** Original path before a rename; only set when status is 'R' or 'C'. */
+  beforePath?: string;
+  /** Single-char git status: 'A' | 'M' | 'D' | 'R' | 'C' */
+  status: string;
+  additions: number;
+  deletions: number;
+}
+
 // ─── App state ────────────────────────────────────────────────────────────────
 
 export interface AppState {
@@ -132,6 +143,14 @@ export interface AppState {
 
   /** False until the startup PR-restore check has completed. Used to suppress the tab label flicker. */
   prRestoreComplete: boolean;
+
+  // Commit stepper
+  /** SHA of the commit selected in the stepper; null = "All changes" mode. */
+  cfCommitFilter: string | null;
+  /** Files changed by the selected commit; null while loading (only valid when cfCommitFilter is set). */
+  cfCommitFilterFiles: CommitFile[] | null;
+  /** True while git diff-tree is running for the selected commit. */
+  cfCommitFilterLoading: boolean;
 }
 
 // ─── Message protocol ─────────────────────────────────────────────────────────
@@ -162,4 +181,6 @@ export type InboundMessage =
   | { type: 'runSynthtrace'; scenario: string; live: boolean }
   | { type: 'refreshScenarios' }
   | { type: 'setTeamFilter'; team: string }
-  | { type: 'openCommit'; sha: string };
+  | { type: 'openCommit'; sha: string }
+  | { type: 'selectCommitFilter'; sha: string | null }
+  | { type: 'openCommitFile'; sha: string; path: string; beforePath?: string };

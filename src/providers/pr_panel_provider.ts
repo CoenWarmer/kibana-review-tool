@@ -28,7 +28,9 @@ type InboundMessage =
   | { type: 'runSynthtrace'; scenario: string; live: boolean }
   | { type: 'refreshScenarios' }
   | { type: 'setTeamFilter'; team: string }
-  | { type: 'openCommit'; sha: string };
+  | { type: 'openCommit'; sha: string }
+  | { type: 'selectCommitFilter'; sha: string | null }
+  | { type: 'openCommitFile'; sha: string; path: string; beforePath?: string };
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
@@ -68,6 +70,12 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
   private cfSuggestedOrder: ReviewOrderSuggestion | null = null;
   private cfOrderMode: 'default' | 'top-down' | 'bottom-up' = 'default';
   private cfIsOrderLoading = false;
+
+  // ─── Commit stepper state ────────────────────────────────────────────────────
+  private cfCommitFilter: string | null = null;
+  private cfCommitFilterFiles: Array<{ path: string; beforePath?: string; status: string }> | null =
+    null;
+  private cfCommitFilterLoading = false;
 
   /** PR number currently checked out on the local git branch, or null if none. */
   private _checkedOutPrNumber: number | null = null;
@@ -148,6 +156,9 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
 
   /** Fired when the user clicks a commit SHA to view it in the IDE. */
   onOpenCommit?: (sha: string) => void;
+
+  /** Fired when the user clicks a file row while a commit filter is active. */
+  onOpenCommitFile?: (sha: string, path: string, beforePath?: string) => void;
 
   constructor(
     private readonly githubService: GitHubService,
@@ -268,6 +279,27 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
         case 'openCommit':
           this.onOpenCommit?.(msg.sha);
           break;
+        case 'selectCommitFilter':
+          this.cfCommitFilter = msg.sha;
+          if (msg.sha === null) {
+            // Returning to "All" mode — clear files immediately.
+            this.cfCommitFilterFiles = null;
+            this.cfCommitFilterLoading = false;
+            this.sendState({
+              cfCommitFilter: null,
+              cfCommitFilterFiles: null,
+              cfCommitFilterLoading: false,
+            });
+          } else {
+            // Keep existing files visible while the new commit loads.
+            this.cfCommitFilterLoading = true;
+            this.sendState({ cfCommitFilter: msg.sha, cfCommitFilterLoading: true });
+            void this.fetchCommitFiles(msg.sha);
+          }
+          break;
+        case 'openCommitFile':
+          this.onOpenCommitFile?.(msg.sha, msg.path, msg.beforePath);
+          break;
       }
     });
 
@@ -308,6 +340,87 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
     this.teamFilter = team;
     void this.fetchAndSendTeamMembers(team);
     this.sendState({ teamFilter: team });
+  }
+
+  private async fetchCommitFiles(sha: string): Promise<void> {
+    const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!cwd) return;
+    try {
+      const { execFile } = await import('child_process');
+      const { promisify } = await import('util');
+      const exec = promisify(execFile);
+
+      // Run both in parallel: name-status for status+rename paths, numstat for line counts.
+      const [{ stdout: nameStatusOut }, { stdout: numstatOut }] = await Promise.all([
+        exec('git', ['diff-tree', '--no-commit-id', '-r', '--name-status', '-M', sha], {
+          cwd,
+          encoding: 'utf8',
+        }),
+        exec('git', ['diff-tree', '--no-commit-id', '-r', '--numstat', sha], {
+          cwd,
+          encoding: 'utf8',
+        }),
+      ]);
+
+      // Parse numstat: "additions\tdeletions\tpath" (without -M, renames are split as del+add).
+      const numstatMap = new Map<string, { additions: number; deletions: number }>();
+      for (const line of numstatOut.trim().split('\n').filter(Boolean)) {
+        const parts = line.split('\t');
+        const filePath = parts[2];
+        numstatMap.set(filePath, {
+          additions: parts[0] === '-' ? 0 : parseInt(parts[0], 10),
+          deletions: parts[1] === '-' ? 0 : parseInt(parts[1], 10),
+        });
+      }
+
+      type CommitFile = {
+        path: string;
+        beforePath?: string;
+        status: string;
+        additions: number;
+        deletions: number;
+      };
+      const files: CommitFile[] = nameStatusOut
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => {
+          const parts = line.split('\t');
+          const status = parts[0][0];
+          if (status === 'R' || status === 'C') {
+            const beforePath = parts[1];
+            const afterPath = parts[2];
+            // numstat (without -M) treats the rename as: beforePath deleted, afterPath added.
+            const delStats = numstatMap.get(beforePath) ?? { additions: 0, deletions: 0 };
+            const addStats = numstatMap.get(afterPath) ?? { additions: 0, deletions: 0 };
+            return {
+              status,
+              beforePath,
+              path: afterPath,
+              additions: addStats.additions,
+              deletions: delStats.deletions,
+            };
+          }
+          const stats = numstatMap.get(parts[1]) ?? { additions: 0, deletions: 0 };
+          return { status, path: parts[1], additions: stats.additions, deletions: stats.deletions };
+        });
+
+      // Only send if the filter hasn't changed while we were fetching.
+      if (this.cfCommitFilter === sha) {
+        this.cfCommitFilterFiles = files;
+        this.cfCommitFilterLoading = false;
+        this.sendState({ cfCommitFilterFiles: files, cfCommitFilterLoading: false });
+      }
+    } catch (err) {
+      log(
+        `[fetchCommitFiles] Failed for ${sha}: ${err instanceof Error ? err.message : String(err)}`
+      );
+      if (this.cfCommitFilter === sha) {
+        this.cfCommitFilterFiles = [];
+        this.cfCommitFilterLoading = false;
+        this.sendState({ cfCommitFilterFiles: [], cfCommitFilterLoading: false });
+      }
+    }
   }
 
   private async fetchAndSendTeamMembers(team: string): Promise<void> {
@@ -357,6 +470,9 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
     this.cfSuggestedOrder = null;
     this.cfOrderMode = 'default';
     this.cfIsOrderLoading = false;
+    this.cfCommitFilter = null;
+    this.cfCommitFilterFiles = null;
+    this.cfCommitFilterLoading = false;
     this.discussionComments = [];
     this.sendState({
       currentPr: null,
@@ -371,6 +487,9 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
       cfSuggestedOrder: null,
       cfOrderMode: 'default',
       cfIsOrderLoading: false,
+      cfCommitFilter: null,
+      cfCommitFilterFiles: null,
+      cfCommitFilterLoading: false,
       discussionComments: [],
     });
   }
@@ -668,6 +787,9 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
       synthtraceScenarios: this.synthtraceScenarios,
       wrongRepo: this.wrongRepo,
       prRestoreComplete: this.prRestoreComplete,
+      cfCommitFilter: this.cfCommitFilter,
+      cfCommitFilterFiles: this.cfCommitFilterFiles,
+      cfCommitFilterLoading: this.cfCommitFilterLoading,
     };
   }
 
