@@ -1,13 +1,13 @@
 {
   "name": "kibana-pr-reviewer",
   "displayName": "Elastic PR Reviewer",
-  "description": "Review Kibana pull requests with team filtering, smart file ordering, and inline diffs",
+  "description": "Review Elastic pull requests with team filtering, smart file ordering, and inline diffs",
   "version": "0.1.9",
   "publisher": "cowibewa",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/coenwarmer/kibana-review-tool"
+    "url": "https://github.com/coenwarmer/elastic-review-tool"
   },
   "engines": {
     "vscode": "^1.90.0"
