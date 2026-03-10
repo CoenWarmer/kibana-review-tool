@@ -2,7 +2,7 @@
   "name": "kibana-pr-reviewer",
   "displayName": "Elastic PR Reviewer",
   "description": "Review Elastic pull requests with team filtering, smart file ordering, and inline diffs",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "publisher": "cowibewa",
   "license": "MIT",
   "repository": {
