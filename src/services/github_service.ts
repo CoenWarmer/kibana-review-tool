@@ -4,6 +4,20 @@ import { log, logJson } from '../logger';
 
 const execFileAsync = promisify(execFile);
 
+/** Runs an array of async task factories with at most `limit` running at once. */
+async function runWithConcurrency<T>(tasks: Array<() => Promise<T>>, limit: number): Promise<T[]> {
+  const results: T[] = [];
+  let i = 0;
+  const run = async (): Promise<void> => {
+    while (i < tasks.length) {
+      const idx = i++;
+      results[idx] = await tasks[idx]();
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, run));
+  return results;
+}
+
 export interface GhReviewRequest {
   login?: string; // present for user reviewers
   name?: string; // present for team reviewers
@@ -138,6 +152,10 @@ export class GitHubService {
   /** Cached team member logins — keyed by "org/slug". */
   private readonly teamMemberCache = new Map<string, string[]>();
 
+  /** Short-lived cache for PR detail to avoid redundant back-to-back fetches. */
+  private readonly detailCache = new Map<number, { detail: GhPullRequestDetail; ts: number }>();
+  private readonly DETAIL_CACHE_TTL_MS = 60_000;
+
   /**
    * Returns the GitHub logins of all members of a team.
    * Accepts both "org/slug" and bare "slug" formats.
@@ -173,11 +191,14 @@ export class GitHubService {
   /**
    * Fetches open PRs where any of the given teams is (or was) a requested reviewer.
    *
-   * Uses `team-review-requested:org/team` (not `review-requested:`) because:
-   * - `review-requested:` disappears once a team member submits their review
-   * - `team-review-requested:` persists for the lifetime of the PR
+   * Uses two complementary query strategies to ensure full coverage:
+   * - `team-review-requested:org/team` — catches PRs where the team review is still pending.
+   *   GitHub removes a team from this qualifier once any member submits a review, so
+   *   PRs that have been partially or fully reviewed would otherwise disappear.
+   * - `reviewed-by:<member_login>` — catches PRs that fell off the primary query because
+   *   a team member already reviewed them. One query per member is run in parallel.
    *
-   * Runs one query per team so that a single unresolvable team (e.g. a huge
+   * Runs queries per team so that a single unresolvable team (e.g. a huge
    * org-wide team like "employees") cannot poison the results for all others.
    *
    * Team slugs must be in "@org/team-name" format, e.g. "@elastic/obs-onboarding-team".
@@ -211,40 +232,56 @@ export class GitHubService {
     const JSON_FIELDS =
       'number,title,body,isDraft,additions,deletions,createdAt,headRefName,baseRefName,reviewRequests,reviewDecision,author,url,latestReviews,assignees,comments';
 
-    // One query per team — failures are isolated and logged
-    const perTeamResults = await Promise.all(
-      codeOwnerTeams.map(async (teamSlug) => {
-        // team-review-requested: takes "org/team" without the leading @
-        const teamRef = teamSlug.replace(/^@/, '');
-        const searchQuery = `team-review-requested:${teamRef}`;
-        log(`Querying team "${teamSlug}" → search: "${searchQuery}"`);
+    const ghSearch = async (searchQuery: string): Promise<GhPullRequest[]> => {
+      try {
+        const raw = await runGh([
+          'pr',
+          'list',
+          '--repo',
+          this.repo,
+          '--state',
+          'open',
+          '--search',
+          searchQuery,
+          '--json',
+          JSON_FIELDS,
+          '--limit',
+          '200',
+        ]);
+        const prs = JSON.parse(raw) as GhPullRequest[];
+        log(`  → ${prs.length} PRs for "${searchQuery}"`);
+        return prs;
+      } catch (err) {
+        log(`  ✗ Query failed for "${searchQuery}": ${err instanceof Error ? err.message : String(err)}`);
+        return [];
+      }
+    };
 
-        try {
-          const raw = await runGh([
-            'pr',
-            'list',
-            '--repo',
-            this.repo,
-            '--state',
-            'open',
-            '--search',
-            searchQuery,
-            '--json',
-            JSON_FIELDS,
-            '--limit',
-            '200',
-          ]);
-          const prs = JSON.parse(raw) as GhPullRequest[];
-          log(`  → ${prs.length} PRs for ${teamSlug}`);
-          return prs;
-        } catch (err) {
-          log(
-            `  ✗ Query failed for ${teamSlug}: ${err instanceof Error ? err.message : String(err)}`
-          );
-          return [] as GhPullRequest[];
-        }
+    // PRIMARY: team-review-requested persists while the review request is open,
+    // but GitHub removes it once any team member submits a review.
+    // SECONDARY: reviewed-by:<member> catches PRs that fell off the primary query
+    // because a team member already reviewed them.
+    const primaryQueries = codeOwnerTeams.map((teamSlug) => {
+      const teamRef = teamSlug.replace(/^@/, '');
+      return () => ghSearch(`team-review-requested:${teamRef}`);
+    });
+
+    // Fetch members for all teams concurrently, then build per-member queries.
+    const teamMemberSets = await Promise.all(
+      codeOwnerTeams.map(async (teamSlug) => {
+        const [org, ...rest] = teamSlug.replace(/^@/, '').split('/');
+        const bareSlug = rest.join('/');
+        return this.getTeamMemberLogins(org, bareSlug);
       })
     );
+    const allMembers = [...new Set(teamMemberSets.flat())];
+    const secondaryQueries = allMembers.map(
+      (login) => () => ghSearch(`reviewed-by:${login}`)
+    );
+
+    // Run all queries with a concurrency cap to stay within GitHub rate limits.
+    const allResults = await runWithConcurrency([...primaryQueries, ...secondaryQueries], 6);
+    const perTeamResults = allResults;
 
     // Merge and deduplicate by PR number (a PR can match multiple teams)
     const seen = new Set<number>();
@@ -322,7 +359,20 @@ export class GitHubService {
     }));
   }
 
+  /** Invalidates the cached detail for a PR (e.g. after posting a comment or review). */
+  invalidateDetailCache(prNumber: number): void {
+    this.detailCache.delete(prNumber);
+  }
+
   async getPullRequestDetail(prNumber: number): Promise<GhPullRequestDetail> {
+    // Return cached result if still fresh — avoids redundant back-to-back fetches
+    // (e.g. fetchAndUpdateDetail + refreshFilesAndComments running concurrently).
+    const cached = this.detailCache.get(prNumber);
+    if (cached && Date.now() - cached.ts < this.DETAIL_CACHE_TTL_MS) {
+      log(`getPullRequestDetail #${prNumber}: returning cached result (age ${Date.now() - cached.ts}ms)`);
+      return cached.detail;
+    }
+
     const org = this.repo.split('/')[0];
     const [owner, repoName] = this.repo.split('/');
 
@@ -446,6 +496,7 @@ export class GitHubService {
       pr.teamReviewStatuses = statuses;
     }
 
+    this.detailCache.set(prNumber, { detail: pr, ts: Date.now() });
     return pr;
   }
 

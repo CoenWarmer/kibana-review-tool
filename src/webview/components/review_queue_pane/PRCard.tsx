@@ -48,40 +48,42 @@ export function PrCard({
         postMessage({ type: 'selectPR', prNumber: pr.number });
       }}
     >
-      <div className="pr-title">
-        <span className="pr-num">#{pr.number}</span> {pr.title}
-      </div>
-      <div className="pr-bottom-row">
-        <span className="age">
-          {ageLabel(pr.createdAt)} - @{pr.author.login}
-          {teamFilterMembers.length > 0 && (
-            <span
-              className={`pr-author-badge${isTeamAuthor ? ' pr-author-badge--team' : ' pr-author-badge--external'}`}
-              title={isTeamAuthor ? 'Author is a team member' : 'Author is not a team member'}
-            >
-              {isTeamAuthor ? 'team' : 'external'}
+      <div className="pr-card-content">
+        <div className="pr-title">
+          <span className="pr-num">#{pr.number}</span> {pr.title}
+        </div>
+        <div className="pr-bottom-row">
+          <span className="age">
+            {ageLabel(pr.createdAt)} - @{pr.author.login}
+            {teamFilterMembers.length > 0 && (
+              <span
+                className={`pr-author-badge${isTeamAuthor ? ' pr-author-badge--team' : ' pr-author-badge--external'}`}
+                title={isTeamAuthor ? 'Author is a team member' : 'Author is not a team member'}
+              >
+                {isTeamAuthor ? 'team' : 'external'}
+              </span>
+            )}
+          </span>
+          {(teamReviews.length > 0 || teamAssignees.length > 0) && (
+            <span className="pr-team-reviewers">
+              {teamReviews.map((r) => (
+                <span
+                  key={r.author.login}
+                  className={`pr-team-reviewer state-${r.state.toLowerCase()}`}
+                >
+                  <span className="pr-reviewer-icon">{STATE_ICON[r.state] ?? '·'}</span>
+                  {r.author.login}
+                </span>
+              ))}
+              {teamAssignees.map((a) => (
+                <span key={a.login} className="pr-team-reviewer state-assigned">
+                  <span className="pr-reviewer-icon">→</span>
+                  {a.login}
+                </span>
+              ))}
             </span>
           )}
-        </span>
-        {(teamReviews.length > 0 || teamAssignees.length > 0) && (
-          <span className="pr-team-reviewers">
-            {teamReviews.map((r) => (
-              <span
-                key={r.author.login}
-                className={`pr-team-reviewer state-${r.state.toLowerCase()}`}
-              >
-                <span className="pr-reviewer-icon">{STATE_ICON[r.state] ?? '·'}</span>
-                {r.author.login}
-              </span>
-            ))}
-            {teamAssignees.map((a) => (
-              <span key={a.login} className="pr-team-reviewer state-assigned">
-                <span className="pr-reviewer-icon">→</span>
-                {a.login}
-              </span>
-            ))}
-          </span>
-        )}
+        </div>
       </div>
     </div>
   );
