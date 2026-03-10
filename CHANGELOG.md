@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.18] - 2026-03-10
+
+### Fixed
+- **Reviewed PRs missing from Review Queue**: `reviewed-by:<member_login>` supplementary queries were accidentally removed in a refactor, causing PRs where a team member had already submitted a review to disappear from the queue. The queries (and `runWithConcurrency` helper) have been restored
+- **60-second PR detail cache lost in refactor**: `detailCache` and `invalidateDetailCache` were also removed in the same refactor, causing redundant back-to-back GitHub API calls when selecting a checked-out PR. Both have been restored, including the cache-invalidation calls after posting a comment or submitting a review
+
+---
+
 ## [0.1.17] - 2026-03-10
 
 ### Fixed
