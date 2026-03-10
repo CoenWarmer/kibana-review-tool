@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { postMessage } from '../vscode';
-import { ageLabel } from '../utils';
-import type { GhDiscussionComment } from '../types';
-import { MarkdownBody } from './MarkdownBody';
-import { CommitLabel } from './CommitLabel';
+import { postMessage } from '../../vscode';
+import { ageLabel } from '../../utils';
+import type { GhDiscussionComment } from '../../types';
+import { MarkdownBody } from '../MarkdownBody';
+import { CommitLabel } from '../CommitLabel';
 
 const HIDDEN_USERS_KEY = 'disc-hidden-users';
 

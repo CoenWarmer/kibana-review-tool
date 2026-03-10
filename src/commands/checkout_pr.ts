@@ -80,6 +80,9 @@ export async function checkoutPR(
   ctx: CheckoutContext
 ): Promise<void> {
   const prNumber = typeof prOrNumber === 'number' ? prOrNumber : prOrNumber.number;
+  // headRefName is used to verify the checkout succeeded when gh fails at the
+  // tracking-info setup step (see isTrackingInfoError below).
+  const headRefName = typeof prOrNumber === 'object' ? prOrNumber.headRefName : undefined;
   const config = vscode.workspace.getConfiguration('elastic-pr-reviewer');
   const repo = config.get<string>('repo', 'elastic/kibana');
   const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -118,7 +121,23 @@ export async function checkoutPR(
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
 
-        if (isRefConflictError(msg)) {
+        if (isTrackingInfoError(msg)) {
+          // gh pr checkout failed at the tracking-info setup step, but the branch
+          // was likely already created and switched to before the error. Verify by
+          // checking the current branch — if it matches the expected PR branch the
+          // checkout was actually successful; we just skip the tracking setup.
+          log(`Tracking-info error detected — verifying current branch…`);
+          const currentBranch = await getCurrentBranch(cwd);
+          log(
+            `Current branch after error: "${currentBranch}", expected: "${headRefName ?? '(unknown)'}"`
+          );
+          if (headRefName && currentBranch === headRefName) {
+            log('Branch matches — treating tracking-info error as benign, proceeding.');
+            // Fall through to loadPRData below.
+          } else {
+            throw err;
+          }
+        } else if (isRefConflictError(msg)) {
           // Try remote prune first (handles stale remote-tracking refs)
           log('Pruning stale remote refs…');
           await pruneRemotes(cwd);
@@ -203,6 +222,16 @@ async function runCheckout(prNumber: number, repo: string, cwd: string | undefin
 }
 
 /**
+ * Detects the "cannot set up tracking information" error that gh pr checkout
+ * raises when the remote-tracking ref doesn't exist locally yet. The local
+ * branch is typically already created and checked out at this point — the
+ * error only occurs at the final tracking-setup step.
+ */
+function isTrackingInfoError(message: string): boolean {
+  return message.includes('cannot set up tracking information');
+}
+
+/**
  * Detects the git "refs/heads/X exists; cannot create refs/heads/X/Y" error
  * that occurs when a flat local branch (e.g. `fix`) conflicts with a
  * slash-namespaced branch (e.g. `fix/my-change`).
@@ -225,6 +254,15 @@ function isRefConflictError(message: string): boolean {
 function extractConflictingLocalBranch(errorMessage: string): string | null {
   const match = errorMessage.match(/refs\/heads\/([^\s']+)['"]?\s+exists/);
   return match?.[1] ?? null;
+}
+
+async function getCurrentBranch(cwd: string | undefined): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync('git', ['branch', '--show-current'], { cwd });
+    return stdout.trim();
+  } catch {
+    return '';
+  }
 }
 
 async function deleteLocalBranch(branch: string, cwd: string | undefined): Promise<void> {

@@ -2,8 +2,8 @@ import { useEffect, useReducer } from 'react';
 import { postMessage } from './vscode';
 import { Spinner } from './components/Spinner';
 import { TabBar } from './components/TabBar';
-import { QueuePane } from './components/QueuePane';
-import { ReviewingPane } from './components/ReviewingPane';
+import { QueuePane } from './components/review_queue_pane/QueuePane';
+import { ReviewingPane } from './components/review_pane/ReviewingPane';
 import type { AppState, OutboundMessage } from './types';
 
 // ─── Initial state ────────────────────────────────────────────────────────────

@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { ReactElement } from 'react';
-import { postMessage } from '../vscode';
-import { cfBuildTree, cfCompactFolders, cfStatusIcon, normalizeFileStatus } from '../utils';
-import type { CfTreeChild } from '../utils';
+import { postMessage } from '../../vscode';
+import { cfBuildTree, cfCompactFolders, cfStatusIcon, normalizeFileStatus } from '../../utils';
+import type { CfTreeChild } from '../../utils';
 import type {
   CommitFile,
   GhDiscussionComment,
@@ -10,9 +10,9 @@ import type {
   OrderedFile,
   ReviewOrderSuggestion,
   OrderMode,
-} from '../types';
-import { Spinner } from './Spinner';
-import { CommitLabel } from './CommitLabel';
+} from '../../types';
+import { Spinner } from '../Spinner';
+import { CommitLabel } from '../CommitLabel';
 
 interface Props {
   files: OrderedFile[];

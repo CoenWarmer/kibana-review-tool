@@ -1,77 +1,25 @@
 import { useState } from 'react';
-import type { GhPullRequest, InboundMessage } from '../types';
-import { Spinner } from './Spinner';
+import type { InboundMessage } from '../../types';
 
-interface ActionSectionProps {
-  pr: GhPullRequest;
-  checkoutBusy: boolean;
-  checkoutStage: string;
+interface DevEnvPanelProps {
   esStatus: string;
   kibanaStatus: string;
-  checkedOutPrNumber: number | null;
-  isKibanaRepo: boolean;
   synthtraceScenarios: string[];
   postMessage: (message: InboundMessage) => void;
 }
 
-export function ActionSection({
-  pr,
-  checkoutBusy,
-  checkedOutPrNumber,
-  checkoutStage,
+export function DevEnvPanel({
   esStatus,
   kibanaStatus,
-  isKibanaRepo,
   synthtraceScenarios,
   postMessage,
-}: ActionSectionProps) {
-  const isCheckedOut = pr.number === checkedOutPrNumber;
+}: DevEnvPanelProps) {
   const [selectedScenario, setSelectedScenario] = useState<string>(synthtraceScenarios[0] ?? '');
   const [live, setLive] = useState(false);
-  const [devEnvOpen, setDevEnvOpen] = useState(false);
 
   return (
-    <div className="action-rows">
-      <div className="checkout-row">
-        <button
-          className={`checkout-btn${checkoutBusy ? ' busy' : ''}`}
-          disabled={isCheckedOut || checkoutBusy}
-          onClick={() => postMessage({ type: 'checkout' })}
-        >
-          {checkoutBusy ? (
-            <>
-              <Spinner className="spinner-mr" />
-              {checkoutStage || 'Checking out…'}
-            </>
-          ) : isCheckedOut ? (
-            '✓ Checked out'
-          ) : (
-            '↓ Checkout'
-          )}
-        </button>
-        <button
-          className="refresh-btn"
-          title="Refresh PR data"
-          onClick={() => postMessage({ type: 'refreshPR' })}
-        >
-          &#8635;
-        </button>
-        <button
-          className={`dev-env-toggle-btn${devEnvOpen ? ' active' : ''}`}
-          title={
-            isKibanaRepo
-              ? devEnvOpen
-                ? 'Hide dev environment'
-                : 'Show dev environment'
-              : 'Only available in elastic/kibana'
-          }
-          disabled={!isKibanaRepo}
-          onClick={() => setDevEnvOpen((v) => !v)}
-        >
-          ⚡
-        </button>
-      </div>
-      <div className={`dev-env-row${devEnvOpen ? '' : ' hidden'}`}>
+    <div className="dev-env-panel">
+      <div className="dev-env-row">
         <button className="server-btn" onClick={() => postMessage({ type: 'startEs' })}>
           <span className={`server-dot ${esStatus}`} />
           <span className="server-label">Elasticsearch</span>
@@ -96,7 +44,7 @@ export function ActionSection({
           ⎋ Open Kibana
         </button>
       </div>
-      <div className={`synthtrace-row${devEnvOpen ? '' : ' hidden'}`}>
+      <div className="synthtrace-row">
         <select
           className="synthtrace-select"
           value={selectedScenario}

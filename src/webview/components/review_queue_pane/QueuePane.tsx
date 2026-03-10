@@ -1,8 +1,10 @@
 import { useState, useCallback, useRef } from 'react';
-import { postMessage } from '../vscode';
-import { ageLabel, isReviewInProgress } from '../utils';
-import type { GhPullRequest } from '../types';
-import { Spinner } from './Spinner';
+import { postMessage } from '../../vscode';
+import { isReviewInProgress } from '../../utils';
+import type { GhPullRequest } from '../../types';
+import { Spinner } from '../Spinner';
+import { PrCard } from './PRCard';
+import { PersonIcon } from '../icons/PersonIcon';
 
 interface Props {
   allPrs: GhPullRequest[];
@@ -18,89 +20,6 @@ interface Props {
 }
 
 type Bucket = 'unreviewed' | 'in-review-by-you' | 'in-review' | 'approved';
-
-/**
- * Classify a PR into a bucket.
- *
- * Priority (highest wins):
- *  1. "Approved"          — team has approved (or reviewDecision === APPROVED).
- *  2. "In review by you"  — the current user has a COMMENTED or CHANGES_REQUESTED
- *                           review on this PR (they've started, not finished).
- *  3. "In review"         — at least one other team member has a non-pending review,
- *                           OR the PR is assigned to a team member.
- *  4. "Unreviewed"        — no team activity yet.
- *
- * When a team is selected and its member logins are known, "Approved" and
- * "In review" are scoped to that team; "In review by you" always uses the
- * current user regardless of team filter.
- */
-function classifyPr(pr: GhPullRequest, teamMembers: string[], currentUserLogin: string): Bucket {
-  const allReviews = pr.latestReviews ?? [];
-
-  if (teamMembers.length > 0) {
-    const memberSet = new Set(teamMembers);
-    const teamReviews = allReviews.filter(
-      (r) => r.state !== 'PENDING' && memberSet.has(r.author.login)
-    );
-    if (teamReviews.some((r) => r.state === 'APPROVED')) return 'approved';
-
-    // "In review by you" — current user has a non-approved, non-pending review.
-    if (currentUserLogin) {
-      const myReview = allReviews.find(
-        (r) =>
-          r.author.login === currentUserLogin && r.state !== 'PENDING' && r.state !== 'APPROVED'
-      );
-      if (myReview) return 'in-review-by-you';
-    }
-
-    const hasTeamAssignee = (pr.assignees ?? []).some((a) => memberSet.has(a.login));
-    if (teamReviews.length > 0 || hasTeamAssignee) return 'in-review';
-    return 'unreviewed';
-  }
-
-  // Fallback: generic heuristic (no team selected, or members not yet fetched)
-  if (pr.reviewDecision === 'APPROVED') return 'approved';
-
-  if (currentUserLogin) {
-    const myReview = allReviews.find(
-      (r) => r.author.login === currentUserLogin && r.state !== 'PENDING' && r.state !== 'APPROVED'
-    );
-    if (myReview) return 'in-review-by-you';
-  }
-
-  if (isReviewInProgress(pr) || pr.reviewDecision === 'CHANGES_REQUESTED') return 'in-review';
-  return 'unreviewed';
-}
-
-const byNewest = (a: GhPullRequest, b: GhPullRequest) =>
-  new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-
-const BUCKETS: { key: Bucket; label: string; teamSuffix: boolean }[] = [
-  { key: 'in-review-by-you', label: 'In review by you', teamSuffix: false },
-  { key: 'unreviewed', label: 'Unreviewed', teamSuffix: true },
-  { key: 'in-review', label: 'In review', teamSuffix: true },
-  { key: 'approved', label: 'Approved', teamSuffix: true },
-];
-
-const SEEN_KEY = 'elastic-pr-reviewer.seenPrs';
-const SHOW_OWN_KEY = 'elastic-pr-reviewer.showOwnPrs';
-
-function loadSeen(): Set<number> {
-  try {
-    const raw = localStorage.getItem(SEEN_KEY);
-    return raw ? new Set(JSON.parse(raw) as number[]) : new Set();
-  } catch {
-    return new Set();
-  }
-}
-
-function saveSeen(seen: Set<number>): void {
-  try {
-    localStorage.setItem(SEEN_KEY, JSON.stringify([...seen]));
-  } catch {
-    // storage quota or unavailable — ignore
-  }
-}
 
 export function QueuePane({
   allPrs,
@@ -235,7 +154,7 @@ export function QueuePane({
             }
           }}
         >
-          👤
+          <PersonIcon color="#C5C5C5" width={16} height={16} />
         </button>
       </div>
 
@@ -280,87 +199,85 @@ export function QueuePane({
   );
 }
 
-const STATE_ICON: Record<string, string> = {
-  APPROVED: '✅',
-  CHANGES_REQUESTED: '❌',
-  COMMENTED: '👀',
-  DISMISSED: '🚮',
-};
+/**
+ * Classify a PR into a bucket.
+ *
+ * Priority (highest wins):
+ *  1. "Approved"          — team has approved (or reviewDecision === APPROVED).
+ *  2. "In review by you"  — the current user has a COMMENTED or CHANGES_REQUESTED
+ *                           review on this PR (they've started, not finished).
+ *  3. "In review"         — at least one other team member has a non-pending review,
+ *                           OR the PR is assigned to a team member.
+ *  4. "Unreviewed"        — no team activity yet.
+ *
+ * When a team is selected and its member logins are known, "Approved" and
+ * "In review" are scoped to that team; "In review by you" always uses the
+ * current user regardless of team filter.
+ */
+function classifyPr(pr: GhPullRequest, teamMembers: string[], currentUserLogin: string): Bucket {
+  const allReviews = pr.latestReviews ?? [];
 
-function PrCard({
-  pr,
-  selected,
-  isSeen,
-  onSeen,
-  teamFilterMembers,
-}: {
-  pr: GhPullRequest;
-  selected: boolean;
-  isSeen: boolean;
-  teamFilterMembers: string[];
-  onSeen: (n: number) => void;
-}) {
-  const memberSet = new Set(teamFilterMembers);
-  const isTeamAuthor = teamFilterMembers.length > 0 && memberSet.has(pr.author.login);
+  if (teamMembers.length > 0) {
+    const memberSet = new Set(teamMembers);
+    const teamReviews = allReviews.filter(
+      (r) => r.state !== 'PENDING' && memberSet.has(r.author.login)
+    );
+    if (teamReviews.some((r) => r.state === 'APPROVED')) return 'approved';
 
-  // Reviews submitted by team members (excluding PENDING)
-  const teamReviews =
-    teamFilterMembers.length > 0
-      ? (pr.latestReviews ?? []).filter(
-          (r) => r.state !== 'PENDING' && memberSet.has(r.author.login)
-        )
-      : [];
+    // "In review by you" — current user has a non-approved, non-pending review.
+    if (currentUserLogin) {
+      const myReview = allReviews.find(
+        (r) =>
+          r.author.login === currentUserLogin && r.state !== 'PENDING' && r.state !== 'APPROVED'
+      );
+      if (myReview) return 'in-review-by-you';
+    }
 
-  // Team members assigned but not yet in latestReviews
-  const reviewerLogins = new Set(teamReviews.map((r) => r.author.login));
-  const teamAssignees =
-    teamFilterMembers.length > 0
-      ? (pr.assignees ?? []).filter((a) => memberSet.has(a.login) && !reviewerLogins.has(a.login))
-      : [];
+    const hasTeamAssignee = (pr.assignees ?? []).some((a) => memberSet.has(a.login));
+    if (teamReviews.length > 0 || hasTeamAssignee) return 'in-review';
+    return 'unreviewed';
+  }
 
-  return (
-    <div
-      className={`pr-card${selected ? ' selected' : ''}${isSeen ? ' seen' : ''}`}
-      onClick={() => {
-        onSeen(pr.number);
-        postMessage({ type: 'selectPR', prNumber: pr.number });
-      }}
-    >
-      <div className="pr-title">
-        <span className="pr-num">#{pr.number}</span> {pr.title}
-      </div>
-      <div className="pr-bottom-row">
-        <span className="age">
-          {ageLabel(pr.createdAt)} - @{pr.author.login}
-          {teamFilterMembers.length > 0 && (
-            <span
-              className={`pr-author-badge${isTeamAuthor ? ' pr-author-badge--team' : ' pr-author-badge--external'}`}
-              title={isTeamAuthor ? 'Author is a team member' : 'Author is not a team member'}
-            >
-              {isTeamAuthor ? 'team' : 'external'}
-            </span>
-          )}
-        </span>
-        {(teamReviews.length > 0 || teamAssignees.length > 0) && (
-          <span className="pr-team-reviewers">
-            {teamReviews.map((r) => (
-              <span
-                key={r.author.login}
-                className={`pr-team-reviewer state-${r.state.toLowerCase()}`}
-              >
-                <span className="pr-reviewer-icon">{STATE_ICON[r.state] ?? '·'}</span>
-                {r.author.login}
-              </span>
-            ))}
-            {teamAssignees.map((a) => (
-              <span key={a.login} className="pr-team-reviewer state-assigned">
-                <span className="pr-reviewer-icon">→</span>
-                {a.login}
-              </span>
-            ))}
-          </span>
-        )}
-      </div>
-    </div>
-  );
+  // Fallback: generic heuristic (no team selected, or members not yet fetched)
+  if (pr.reviewDecision === 'APPROVED') return 'approved';
+
+  if (currentUserLogin) {
+    const myReview = allReviews.find(
+      (r) => r.author.login === currentUserLogin && r.state !== 'PENDING' && r.state !== 'APPROVED'
+    );
+    if (myReview) return 'in-review-by-you';
+  }
+
+  if (isReviewInProgress(pr) || pr.reviewDecision === 'CHANGES_REQUESTED') return 'in-review';
+  return 'unreviewed';
+}
+
+const byNewest = (a: GhPullRequest, b: GhPullRequest) =>
+  new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+
+const BUCKETS: { key: Bucket; label: string; teamSuffix: boolean }[] = [
+  { key: 'in-review-by-you', label: 'In review by you', teamSuffix: false },
+  { key: 'unreviewed', label: 'Unreviewed', teamSuffix: true },
+  { key: 'in-review', label: 'In review', teamSuffix: true },
+  { key: 'approved', label: 'Approved', teamSuffix: true },
+];
+
+const SEEN_KEY = 'elastic-pr-reviewer.seenPrs';
+const SHOW_OWN_KEY = 'elastic-pr-reviewer.showOwnPrs';
+
+function loadSeen(): Set<number> {
+  try {
+    const raw = localStorage.getItem(SEEN_KEY);
+    return raw ? new Set(JSON.parse(raw) as number[]) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function saveSeen(seen: Set<number>): void {
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify([...seen]));
+  } catch {
+    // storage quota or unavailable — ignore
+  }
 }
