@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RefreshIcon } from '../icons/RefreshIcon';
 import type { GhPullRequest } from '../../types';
+import { postMessage } from '../../vscode';
 import { Spinner } from '../Spinner';
 import { PlayCircleIcon } from '../icons/PlayCircleIcon';
 import { DoneIcon } from '../icons/DoneIcon';
@@ -141,7 +142,7 @@ export function SectionNavBar({
             postMessage({ type: 'refreshPR' });
           }}
         >
-          {refreshing ? <Spinner /> : <RefreshIcon color="#C5C5C5" />}
+          <RefreshIcon color="#C5C5C5" spinning={refreshing} />
         </button>
         <button
           className={`dev-env-toggle-btn${devEnvOpen ? ' active' : ''}`}

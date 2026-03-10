@@ -419,13 +419,18 @@ body {
 /* .checkout-spin replaced by <Spinner className="mr-4" /> */
 .refresh-btn {
   height: 26px;
+  width: 30px;
   font-size: 20px; line-height: 1; cursor: pointer;
   background: var(--vscode-button-secondaryBackground);
-  color: var(--vscode-foreground);
+  color: var(--vscode-button-secondaryForeground);
   border: 1px solid var(--vscode-button-border);
   border-radius: 3px; padding: 0px 7px;
 }
 .refresh-btn:hover { opacity: 1; }
+.refresh-btn .refresh-icon.spinning {
+  animation: spin 1s linear infinite;
+  transform-origin: center;
+}
 .start-reviewing-btn {
   cursor: pointer;
   background: var(--vscode-button-secondaryBackground);
@@ -534,7 +539,7 @@ body {
 .pr-header-see-all:hover { opacity: 1; text-decoration: underline; }
 #pr-header { background: var(--vscode-editorWidget-background); }
 .pr-info { display: flex; flex-direction: column; gap: 5px; font-size: 11px; }
-.info-row { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.info-row { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; min-height: 16px; }
 .label {
   text-transform: uppercase; font-size: 10px; font-weight: 600;
   color: var(--vscode-descriptionForeground); min-width: 46px; flex-shrink: 0;
@@ -919,7 +924,7 @@ hr { border: none; border-top: 1px solid var(--vscode-widget-border, #444); marg
   padding: 0 14px;
   background: var(--vscode-sideBar-background, #1e1e1e);
 }
-.cf-toolbar-row { display: flex; align-items: center; gap: 5px; padding: 5px 0 4px; }
+.cf-toolbar-row { display: flex; align-items: center; justify-content: space-between; gap: 5px; padding: 5px 0 4px; }
 .cf-search {
   flex: 1; min-width: 0; font-size: 11px;
   background: var(--vscode-input-background); color: var(--vscode-input-foreground);
@@ -928,24 +933,28 @@ hr { border: none; border-top: 1px solid var(--vscode-widget-border, #444); marg
 }
 .cf-search:focus { border-color: var(--vscode-focusBorder); }
 .cf-filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: 11px; cursor: pointer; flex-shrink: 0; background: none;
   border: 1px solid var(--vscode-widget-border, #555);
   border-radius: 3px; padding: 2px 6px; color: var(--vscode-foreground); line-height: 1.6; height: 24px;
 }
 .cf-filter-btn.active {
-  background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); border-color: transparent;
+  background: var(--vscode-button-background); color: var(--vscode-button-foreground); border-color: transparent;
 }
 .suggest-order-btn {
   font-size: 11px; cursor: pointer; flex-shrink: 0; background: none;
   border: 1px solid var(--vscode-widget-border, #555);
   border-radius: 3px; padding: 2px 7px; color: var(--vscode-foreground); line-height: 1.6;
   white-space: nowrap; height: 24px;
+  width: 135px;
 }
 .suggest-order-btn:hover:not(:disabled) { background: var(--vscode-list-hoverBackground); }
 .suggest-order-btn:disabled { opacity: 0.55; cursor: default; }
 .order-mode-toggle {
   display: flex; border: solid 1px var(--vscode-widget-border, #555);
-  border-radius: 3px; padding: 2px; height: 24px;
+  border-radius: 3px; padding: 2px; height: 24px; gap: 5px;
 }
 .order-mode-btn {
   font-size: 11px; cursor: pointer;

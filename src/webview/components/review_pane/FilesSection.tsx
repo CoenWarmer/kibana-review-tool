@@ -13,6 +13,7 @@ import type {
 } from '../../types';
 import { Spinner } from '../Spinner';
 import { CommitLabel } from '../CommitLabel';
+import { PersonIcon } from '../icons/PersonIcon';
 
 interface Props {
   files: OrderedFile[];
@@ -203,7 +204,7 @@ export function FilesSection({
                 disabled={ownedByMePaths === null}
                 onClick={() => setShowOwnedByMe((v) => !v)}
               >
-                👤 Owned by me
+                <PersonIcon color="#C5C5C5" width={16} height={16} /> Owned by me
               </button>
             )}
           </div>

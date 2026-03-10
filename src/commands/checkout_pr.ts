@@ -5,6 +5,7 @@ import * as path from 'path';
 import { promisify } from 'util';
 import * as vscode from 'vscode';
 import { log } from '../logger';
+import { runInTerminal } from '../terminal';
 import type { GhPullRequest } from '../services/github_service';
 import type { GitHubService } from '../services/github_service';
 import { sortAndGroupFiles } from '../services/file_ordering_service';
@@ -293,13 +294,12 @@ async function pruneRemotes(cwd: string | undefined): Promise<void> {
 async function runBootstrap(cwd: string | undefined): Promise<void> {
   const markerPath = path.join(os.tmpdir(), `kbn-bootstrap-${Date.now()}.exit`);
 
-  const terminal = vscode.window.createTerminal({
-    name: '🔧 Bootstrap',
-    cwd,
-  });
-  terminal.show(true);
   // Shell writes its exit code to the marker file so we can detect completion.
-  terminal.sendText(`yarn kbn bootstrap; echo $? > "${markerPath}"`);
+  const terminal = runInTerminal(
+    { name: '🔧 Bootstrap', cwd },
+    `yarn kbn bootstrap; echo $? > "${markerPath}"`
+  );
+  terminal.show(true);
 
   log(`Bootstrap started in terminal — polling for ${markerPath}`);
 

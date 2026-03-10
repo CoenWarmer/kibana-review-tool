@@ -18,6 +18,7 @@ import {
   GitBaseContentProvider,
 } from './commands/open_diff';
 import { initLogger, log, logError } from './logger';
+import { runInTerminal } from './terminal';
 
 /**
  * Returns true when the workspace root is the Kibana repository, detected by
@@ -207,12 +208,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   prPanelProvider.onRunSynthtrace = (scenario: string, live: boolean) => {
     const cmd = `node scripts/synthtrace.js ${scenario}${live ? ' --live' : ''}`;
     log(`[Synthtrace] Running: ${cmd}`);
-    const terminal = vscode.window.createTerminal({
-      name: 'Synthtrace',
-      cwd: workspaceRoot,
-    });
+    const terminal = runInTerminal({ name: 'Synthtrace', cwd: workspaceRoot }, cmd);
     terminal.show(true);
-    terminal.sendText(cmd);
   };
 
   // ─── Team filter persistence ───────────────────────────────────────────────

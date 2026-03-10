@@ -2,13 +2,22 @@ export function RefreshIcon({
   color,
   width = 16,
   height = 16,
+  spinning = false,
 }: {
   color: string;
   width?: number;
   height?: number;
+  spinning?: boolean;
 }) {
   return (
-    <svg width={width} height={height} focusable="false" aria-hidden="true" viewBox="0 0 16 16">
+    <svg
+      width={width}
+      height={height}
+      focusable="false"
+      aria-hidden="true"
+      viewBox="0 0 16 16"
+      className={spinning ? 'refresh-icon spinning' : 'refresh-icon'}
+    >
       <path
         fill-rule="evenodd"
         clip-rule="evenodd"

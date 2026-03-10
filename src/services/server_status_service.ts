@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as net from 'net';
 import * as http from 'http';
+import { runInTerminal } from '../terminal';
 
 export type ServerStatus = 'running' | 'starting' | 'stopped';
 
@@ -77,21 +78,19 @@ export class ServerStatusService {
     if (this.esTerminal) {
       this.esTerminal.dispose();
     }
-    this.esTerminal = vscode.window.createTerminal({
-      name: '⚡ Elasticsearch',
-      cwd: workspaceRoot,
-    });
+    this.esTerminal = runInTerminal(
+      { name: '⚡ Elasticsearch', cwd: workspaceRoot },
+      'yarn es snapshot'
+    );
     this.esTerminal.show(true);
-    this.esTerminal.sendText('yarn es snapshot');
   }
 
   startKibana(workspaceRoot: string): void {
     if (this.kibanaTerminal) {
       this.kibanaTerminal.dispose();
     }
-    this.kibanaTerminal = vscode.window.createTerminal({ name: '🟣 Kibana', cwd: workspaceRoot });
+    this.kibanaTerminal = runInTerminal({ name: '🟣 Kibana', cwd: workspaceRoot }, 'yarn start');
     this.kibanaTerminal.show(true);
-    this.kibanaTerminal.sendText('yarn start');
   }
 
   dispose(): void {
