@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.17] - 2026-03-10
+
+### Fixed
+- **Checkout button did nothing when clicked**: `postMessage` was missing its import in `SectionNavBar`, so the Checkout, Refresh, and ⚡ buttons were all silently calling the browser's native `window.postMessage` instead of the VS Code API
+- **Terminal commands run before `.zshrc` finishes loading**: all spawned terminals (Elasticsearch, Kibana, Synthtrace, Bootstrap) now use a shared `runInTerminal` helper that waits for VS Code shell integration before sending the command, with a 4-second `sendText` fallback for shells without integration support
+- **Lazy-loaded NVM not activated before terminal commands**: when the workspace contains a `.nvmrc` or `.node-version` file, `nvm use 2>/dev/null` is automatically prepended to the command so the correct Node version is active before execution — suppressed with `2>/dev/null` so non-NVM setups are unaffected
+- **Double command execution in terminals**: a `sent` flag now ensures only one path (shell integration or fallback timer) can send the command, preventing the race condition where both fired and the command ran twice
+
+---
+
 ## [0.1.16] - 2026-03-10
 
 ### Fixed
