@@ -38,6 +38,7 @@ export interface GhPullRequest {
   deletions: number;
   createdAt: string;
   headRefName: string;
+  headRefOid?: string;
   baseRefName: string;
   reviewRequests: GhReviewRequest[];
   reviewDecision: ReviewDecision;

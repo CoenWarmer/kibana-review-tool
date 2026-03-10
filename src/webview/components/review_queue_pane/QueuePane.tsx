@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { postMessage } from '../../vscode';
 import { isReviewInProgress } from '../../utils';
 import type { GhPullRequest } from '../../types';
@@ -49,6 +49,49 @@ export function QueuePane({
     const next = new Set(seenRef.current).add(prNumber);
     saveSeen(next);
     setSeen(next);
+  }, []);
+
+  // Track head commit SHAs to detect new commits since last visit.
+  const [shaMap, setShaMap] = useState<Record<number, string>>(() => loadShaMap());
+  const shaMapRef = useRef(shaMap);
+  shaMapRef.current = shaMap;
+
+  // Auto-record SHA for PRs we've never seen before (no dot on first visit).
+  useEffect(() => {
+    const additions: Record<number, string> = {};
+    for (const pr of allPrs) {
+      if (pr.headRefOid && !(pr.number in shaMapRef.current)) {
+        additions[pr.number] = pr.headRefOid;
+      }
+    }
+    if (Object.keys(additions).length === 0) return;
+    setShaMap((prev) => {
+      const next = { ...prev, ...additions };
+      saveShaMap(next);
+      return next;
+    });
+  }, [allPrs]);
+
+  // PRs whose head SHA changed since last user visit.
+  const updatedPrs = useMemo(() => {
+    const set = new Set<number>();
+    for (const pr of allPrs) {
+      if (!pr.headRefOid) continue;
+      const stored = shaMap[pr.number];
+      if (stored !== undefined && stored !== pr.headRefOid) {
+        set.add(pr.number);
+      }
+    }
+    return set;
+  }, [allPrs, shaMap]);
+
+  // Called by PrCard on click — persists the current SHA so the dot disappears.
+  const onShaUpdate = useCallback((prNumber: number, sha: string) => {
+    setShaMap((prev) => {
+      const next = { ...prev, [prNumber]: sha };
+      saveShaMap(next);
+      return next;
+    });
   }, []);
 
   const [collapsed, setCollapsed] = useState<Record<Bucket, boolean>>({
@@ -187,6 +230,8 @@ export function QueuePane({
                       selected={pr.number === selectedPrNumber}
                       isSeen={seen.has(pr.number)}
                       onSeen={markSeen}
+                      hasNewCommits={updatedPrs.has(pr.number)}
+                      onShaUpdate={onShaUpdate}
                       teamFilterMembers={teamFilterMembers}
                     />
                   ))}
@@ -264,6 +309,7 @@ const BUCKETS: { key: Bucket; label: string; teamSuffix: boolean }[] = [
 
 const SEEN_KEY = 'elastic-pr-reviewer.seenPrs';
 const SHOW_OWN_KEY = 'elastic-pr-reviewer.showOwnPrs';
+const SHA_MAP_KEY = 'elastic-pr-reviewer.prHeadShas';
 
 function loadSeen(): Set<number> {
   try {
@@ -279,5 +325,22 @@ function saveSeen(seen: Set<number>): void {
     localStorage.setItem(SEEN_KEY, JSON.stringify([...seen]));
   } catch {
     // storage quota or unavailable — ignore
+  }
+}
+
+function loadShaMap(): Record<number, string> {
+  try {
+    const raw = localStorage.getItem(SHA_MAP_KEY);
+    return raw ? (JSON.parse(raw) as Record<number, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveShaMap(map: Record<number, string>): void {
+  try {
+    localStorage.setItem(SHA_MAP_KEY, JSON.stringify(map));
+  } catch {
+    // ignore
   }
 }

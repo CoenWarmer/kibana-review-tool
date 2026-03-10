@@ -51,6 +51,8 @@ export interface GhPullRequest {
   deletions: number;
   createdAt: string;
   headRefName: string;
+  /** The head branch tip commit SHA — included on list fetches so the webview can detect new commits. */
+  headRefOid?: string;
   baseRefName: string;
   /** The base branch tip commit SHA — present on detail fetches, absent on list items. */
   baseRefOid?: string;
@@ -230,7 +232,7 @@ export class GitHubService {
     }
 
     const JSON_FIELDS =
-      'number,title,body,isDraft,additions,deletions,createdAt,headRefName,baseRefName,reviewRequests,reviewDecision,author,url,latestReviews,assignees,comments';
+      'number,title,body,isDraft,additions,deletions,createdAt,headRefName,headRefOid,baseRefName,reviewRequests,reviewDecision,author,url,latestReviews,assignees,comments';
 
     const ghSearch = async (searchQuery: string): Promise<GhPullRequest[]> => {
       try {
@@ -596,7 +598,7 @@ export class GitHubService {
    */
   async getPRForCurrentBranch(cwd: string): Promise<GhPullRequest | null> {
     const JSON_FIELDS =
-      'number,title,body,isDraft,additions,deletions,createdAt,headRefName,baseRefName,reviewRequests,reviewDecision,author,url,latestReviews,assignees,comments';
+      'number,title,body,isDraft,additions,deletions,createdAt,headRefName,headRefOid,baseRefName,reviewRequests,reviewDecision,author,url,latestReviews,assignees,comments';
     log(`[getPRForCurrentBranch] cwd=${cwd}`);
 
     // gh pr view requires an explicit argument when --repo is set.

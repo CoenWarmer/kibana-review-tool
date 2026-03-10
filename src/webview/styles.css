@@ -237,6 +237,16 @@ body {
   line-height: 1.45; word-break: break-word; margin-bottom: 8px;
 }
 .pr-num { text-decoration: none; font-weight: 600; color: var(--vscode-textLink-foreground); }
+.pr-new-commits-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #f0a500;
+  margin-left: 6px;
+  vertical-align: middle;
+  flex-shrink: 0;
+  cursor: default;
+}
 .pr-bottom-row {
   display: flex; flex-wrap: wrap; gap: 6px;
   font-size: 11px; color: var(--vscode-descriptionForeground); align-items: center;
@@ -985,7 +995,11 @@ hr { border: none; border-top: 1px solid var(--vscode-widget-border, #444); marg
   padding: 0 14px;
   background: var(--vscode-sideBar-background, #1e1e1e);
 }
-.cf-toolbar-row { display: flex; align-items: center; justify-content: space-between; gap: 5px; padding: 5px 0 4px; }
+
+.own-branch .cf-toolbar {
+  top: 0;
+}
+.cf-toolbar-row { display: flex; align-items: center; justify-content: space-between; gap: 3px; padding: 5px 0 4px; }
 .cf-search {
   flex: 1; min-width: 0; font-size: 11px;
   background: var(--vscode-input-background); color: var(--vscode-input-foreground);

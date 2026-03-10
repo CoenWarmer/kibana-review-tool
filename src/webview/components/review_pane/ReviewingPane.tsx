@@ -125,11 +125,11 @@ export function ReviewingPane({
       <div className="reviewing-content">
         <div className="reviewing-empty">
           <p>
-            You&apos;re on <code>{currentBranch ?? 'unknown'}</code>. Ready to open a PR when you
-            are.
+            You&apos;re on <code>{currentBranch ?? 'unknown'}</code>. Compared to upstream main,
+            these are your committed changed files:
           </p>
         </div>
-        <div id="files-section" className="section last">
+        <div id="files-section" className="section last own-branch">
           <FilesSection
             files={cfFiles}
             activeFile={cfActiveFile}

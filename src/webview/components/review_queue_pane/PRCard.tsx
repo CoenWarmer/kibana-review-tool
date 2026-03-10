@@ -14,13 +14,17 @@ export function PrCard({
   selected,
   isSeen,
   onSeen,
+  hasNewCommits,
+  onShaUpdate,
   teamFilterMembers,
 }: {
   pr: GhPullRequest;
   selected: boolean;
   isSeen: boolean;
+  hasNewCommits: boolean;
   teamFilterMembers: string[];
   onSeen: (n: number) => void;
+  onShaUpdate: (prNumber: number, sha: string) => void;
 }) {
   const memberSet = new Set(teamFilterMembers);
   const isTeamAuthor = teamFilterMembers.length > 0 && memberSet.has(pr.author.login);
@@ -45,12 +49,14 @@ export function PrCard({
       className={`pr-card${selected ? ' selected' : ''}${isSeen ? ' seen' : ''}`}
       onClick={() => {
         onSeen(pr.number);
+        if (pr.headRefOid) onShaUpdate(pr.number, pr.headRefOid);
         postMessage({ type: 'selectPR', prNumber: pr.number });
       }}
     >
       <div className="pr-card-content">
         <div className="pr-title">
           <span className="pr-num">#{pr.number}</span> {pr.title}
+          {hasNewCommits && <span className="pr-new-commits-dot" title="New commits added" />}
         </div>
         <div className="pr-bottom-row">
           <span className="age">
