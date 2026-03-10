@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.15] - 2026-03-10
+
+### Changed
+- **Dev environment panel moved into sticky nav container**: the Elasticsearch/Kibana/Synthtrace panel now expands directly below the section nav bar and sticks to the top of the pane while open, rather than appearing at the bottom of the page
+- **Dev environment panel extracted to `DevEnvPanel` component**: the panel content is now a standalone component with its own `selectedScenario` and `live` state
+- **Refresh button shows spinner while loading**: clicking the refresh button in the section nav bar now shows a spinner until the updated PR data arrives, and the button is disabled during that time to prevent duplicate requests
+
+---
+
 ## [0.1.14] - 2026-03-09
 
 ### Added
