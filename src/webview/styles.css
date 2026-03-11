@@ -306,7 +306,7 @@ body {
 }
 .dev-env-panel {
   border-bottom: 1px solid var(--vscode-widget-border, #333);
-  padding: 8px 14px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -461,7 +461,7 @@ body {
 }
 .open-kibana-btn:hover { background: var(--vscode-button-secondaryHoverBackground); }
 .open-kibana-btn:disabled { opacity: 0.35; cursor: default; }
-.dev-env-row { display: flex; gap: 12px; }
+.dev-env-row { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
 .dev-env-panel .synthtrace-row { margin-top: 0; }
 
 .dev-env-toggle-btn {
@@ -510,20 +510,85 @@ body {
   font-size: 12px; color: var(--vscode-foreground); cursor: pointer; flex-shrink: 0;
   user-select: none;
 }
+/* Wraps the main server button + its two extra buttons + dropdown */
+.server-control { display: flex; flex-direction: column; flex-grow: 1; min-width: 0; position: relative; }
+
 .server-btn {
-  display: flex; align-items: center; gap: 5px; cursor: pointer;
+  display: flex; align-items: center; flex: 1;
+  border: none; border-radius: 3px; font-size: 12px;
+  min-width: 0; height: 26px;
   background: var(--vscode-button-secondaryBackground);
   color: var(--vscode-button-secondaryForeground);
-  border: none; border-radius: 3px; padding: 0 10px; height: 26px; font-size: 12px; flex: 1;
 }
-.server-btn:hover { background: var(--vscode-button-secondaryHoverBackground); }
+/* Small ⚙ and ▾ buttons beside each server button */
+.server-extra-btn, .server-btn-run {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0; width: 22px; height: 26px; padding: 0; cursor: pointer;
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border: none; border-radius: 3px; font-size: 12px; opacity: 0.7;
+}
+.server-extra-btn:hover, .server-btn-run:hover { background: var(--vscode-button-secondaryHoverBackground); opacity: 1; }
+.server-extra-btn.active, .server-btn-run.active { opacity: 1; background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
+.server-extra-btn:disabled, .server-btn-run:disabled { opacity: 0.3; cursor: default; }
+
+/* Wrapper for the ▾ button + its absolute dropdown */
+.server-select-wrapper { position: relative; }
+
+.server-history-dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 200;
+  min-width: 220px; max-height: 200px; overflow-y: auto;
+  background: var(--vscode-menu-background, var(--vscode-editorWidget-background));
+  border: 1px solid var(--vscode-widget-border, #555);
+  border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  display: flex; flex-direction: column;
+}
+.server-history-item {
+  text-align: left; padding: 6px 10px; font-size: 12px; font-family: var(--vscode-editor-font-family, monospace);
+  background: transparent; border: none; cursor: pointer;
+  color: var(--vscode-menu-foreground, inherit); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.server-history-item:hover { background: var(--vscode-menu-selectionBackground, var(--vscode-list-hoverBackground)); }
+
+/* Inline customize input row */
+.server-customize-row {
+  display: flex; gap: 4px; align-items: center;
+  position: absolute; top: calc(100% + 4px); left: 0; right: -60px; z-index: 200;
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  border: 1px solid var(--vscode-widget-border, #555);
+  border-radius: 4px; padding: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.server-cmd-input {
+  flex: 1; min-width: 0; height: 24px; padding: 0 6px; font-size: 12px;
+  font-family: var(--vscode-editor-font-family, monospace);
+  background: var(--vscode-input-background); color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, #555); border-radius: 3px; outline: none;
+}
+.server-cmd-input:focus { border-color: var(--vscode-focusBorder); }
+.server-cmd-run-btn, .server-cmd-cancel-btn {
+  flex-shrink: 0; height: 24px; padding: 0 8px; font-size: 11px; cursor: pointer;
+  border: none; border-radius: 3px;
+}
+.server-cmd-run-btn {
+  background: var(--vscode-button-background); color: var(--vscode-button-foreground);
+}
+.server-cmd-run-btn:hover { background: var(--vscode-button-hoverBackground); }
+.server-cmd-cancel-btn {
+  background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground);
+}
+.server-cmd-cancel-btn:hover { background: var(--vscode-button-secondaryHoverBackground); }
 .server-dot {
+  cursor: pointer;
   width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; display: inline-block;
 }
 .server-dot.running { background: #4caf50; box-shadow: 0 0 4px #4caf5088; }
 .server-dot.starting { background: #d29922; box-shadow: 0 0 4px #d2992288; }
-.server-dot.stopped { background: #666; }
-.server-label { font-weight: 500; }
+.server-dot.stopped { background: var(--vscode-button-secondaryForeground); }
+.server-label { flex-grow: 1; flex-shrink: 1; display: flex; padding: 0 6px 0 12px; font-weight: 500; }
 .server-action {
   margin-left: auto; font-size: 11px; opacity: 0.7; padding: 1px 5px;
   background: var(--vscode-badge-background); border-radius: 3px;

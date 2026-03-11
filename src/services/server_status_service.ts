@@ -66,6 +66,23 @@ export class ServerStatusService {
   constructor(private readonly kibanaBaseUrl: string = 'http://127.0.0.1:5601/kibana') {}
 
   startPolling(): void {
+    // When the user closes a terminal, immediately reset the status to 'stopped'
+    // rather than waiting up to POLL_INTERVAL_MS for the poller to catch up.
+    vscode.window.onDidCloseTerminal((t) => {
+      let changed = false;
+      if (t === this.esTerminal) {
+        this.esTerminal = null;
+        this.esStatus = 'stopped';
+        changed = true;
+      }
+      if (t === this.kibanaTerminal) {
+        this.kibanaTerminal = null;
+        this.kibanaStatus = 'stopped';
+        changed = true;
+      }
+      if (changed) this._onStatusChange.fire(this.getStatus());
+    });
+
     void this.poll();
     this.pollTimer = setInterval(() => void this.poll(), POLL_INTERVAL_MS);
   }
@@ -74,23 +91,26 @@ export class ServerStatusService {
     return { es: this.esStatus, kibana: this.kibanaStatus };
   }
 
-  startEs(workspaceRoot: string): void {
+  startEs(workspaceRoot: string, command = 'yarn es snapshot'): void {
     if (this.esTerminal) {
       this.esTerminal.dispose();
     }
-    this.esTerminal = runInTerminal(
-      { name: '⚡ Elasticsearch', cwd: workspaceRoot },
-      'yarn es snapshot'
-    );
+    this.esTerminal = runInTerminal({ name: '⚡ Elasticsearch', cwd: workspaceRoot }, command);
     this.esTerminal.show(true);
+    // Immediately reflect that the server is starting so the UI updates at once.
+    this.esStatus = 'starting';
+    this._onStatusChange.fire(this.getStatus());
   }
 
-  startKibana(workspaceRoot: string): void {
+  startKibana(workspaceRoot: string, command = 'yarn start'): void {
     if (this.kibanaTerminal) {
       this.kibanaTerminal.dispose();
     }
-    this.kibanaTerminal = runInTerminal({ name: '🟣 Kibana', cwd: workspaceRoot }, 'yarn start');
+    this.kibanaTerminal = runInTerminal({ name: '🟣 Kibana', cwd: workspaceRoot }, command);
     this.kibanaTerminal.show(true);
+    // Immediately reflect that the server is starting so the UI updates at once.
+    this.kibanaStatus = 'starting';
+    this._onStatusChange.fire(this.getStatus());
   }
 
   dispose(): void {
@@ -104,11 +124,12 @@ export class ServerStatusService {
   private async poll(): Promise<void> {
     const [esOpen, kibanaOpen] = await Promise.all([isPortOpen(ES_PORT), isPortOpen(KIBANA_PORT)]);
 
-    const newEs: ServerStatus = esOpen ? 'running' : 'stopped';
+    // While a terminal is alive treat a closed port as 'starting', not 'stopped'.
+    const newEs: ServerStatus = esOpen ? 'running' : this.esTerminal ? 'starting' : 'stopped';
 
     let newKibana: ServerStatus;
     if (!kibanaOpen) {
-      newKibana = 'stopped';
+      newKibana = this.kibanaTerminal ? 'starting' : 'stopped';
     } else {
       // Port is open (basepath proxy is up) but we need to confirm the actual
       // Kibana HTTP server is ready before showing green.

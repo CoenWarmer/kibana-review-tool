@@ -181,8 +181,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   serverStatusService.startPolling();
   context.subscriptions.push({ dispose: () => serverStatusService.dispose() });
 
-  prPanelProvider.onStartEs = () => serverStatusService.startEs(workspaceRoot);
-  prPanelProvider.onStartKibana = () => serverStatusService.startKibana(workspaceRoot);
+  prPanelProvider.onStartEs = (command?: string) => serverStatusService.startEs(workspaceRoot, command);
+  prPanelProvider.onStartKibana = (command?: string) => serverStatusService.startKibana(workspaceRoot, command);
   prPanelProvider.onSuggestOrder = () => {
     const pr = prPanelProvider.currentPr;
     const files = prPanelProvider.getCurrentFiles();

@@ -23,8 +23,8 @@ type InboundMessage =
   | { type: 'toggleOwnedByMe' }
   | { type: 'suggestOrder' }
   | { type: 'setOrderMode'; mode: 'default' | 'top-down' | 'bottom-up' }
-  | { type: 'startEs' }
-  | { type: 'startKibana' }
+  | { type: 'startEs'; command?: string }
+  | { type: 'startKibana'; command?: string }
   | { type: 'openKibana' }
   | { type: 'runSynthtrace'; scenario: string; live: boolean }
   | { type: 'refreshScenarios' }
@@ -117,10 +117,10 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
   private checkoutStage = '';
 
   /** Fired when the user clicks Start/Restart Elasticsearch. */
-  onStartEs?: () => void;
+  onStartEs?: (command?: string) => void;
 
   /** Fired when the user clicks Start/Restart Kibana. */
-  onStartKibana?: () => void;
+  onStartKibana?: (command?: string) => void;
 
   /** Fired when the user clicks "Open Kibana". */
   onOpenKibana?: () => void;
@@ -275,10 +275,10 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
           this.sendState({ cfOrderMode: this.cfOrderMode });
           break;
         case 'startEs':
-          this.onStartEs?.();
+          this.onStartEs?.(msg.command);
           break;
         case 'startKibana':
-          this.onStartKibana?.();
+          this.onStartKibana?.(msg.command);
           break;
         case 'openKibana':
           this.onOpenKibana?.();

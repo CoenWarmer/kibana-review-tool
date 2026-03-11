@@ -182,8 +182,8 @@ export type InboundMessage =
   | { type: 'toggleOwnedByMe' }
   | { type: 'suggestOrder' }
   | { type: 'setOrderMode'; mode: OrderMode }
-  | { type: 'startEs' }
-  | { type: 'startKibana' }
+  | { type: 'startEs'; command?: string }
+  | { type: 'startKibana'; command?: string }
   | { type: 'openKibana' }
   | { type: 'runSynthtrace'; scenario: string; live: boolean }
   | { type: 'refreshScenarios' }
