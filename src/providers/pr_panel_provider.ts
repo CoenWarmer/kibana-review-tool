@@ -700,22 +700,15 @@ export class PrPanelProvider implements vscode.WebviewViewProvider {
       this.userTeams = userTeams;
 
       if (userTeams.length === 0) {
-        this.allPrs = [];
-        this.errorMessage =
-          'No teams detected. Set elastic-pr-reviewer.userTeams in Settings ' +
-          '(e.g. ["@elastic/obs-onboarding-team"]).';
-        this.isLoading = false;
-        this.sendState({
-          allPrs: [],
-          userTeams: [],
-          errorMessage: this.errorMessage,
-          isLoading: false,
-        });
-        return;
+        // No GitHub teams found (e.g. personal repo or repo without org teams).
+        // Fall back to listing all open PRs for the repo so the queue is still useful.
+        log('No teams detected — falling back to listing all open PRs for the repo');
+        this.allPrs = await this.githubService.listAllOpenPRs();
+        log(`PRs returned (no-team fallback): ${this.allPrs.length}`);
+      } else {
+        this.allPrs = await this.githubService.listOpenPRsForTeams(userTeams);
+        log(`PRs returned for teams: ${this.allPrs.length}`);
       }
-
-      this.allPrs = await this.githubService.listOpenPRsForTeams(userTeams);
-      log(`PRs returned for teams: ${this.allPrs.length}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       log(`ERROR during refresh: ${msg}`);

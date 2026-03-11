@@ -205,6 +205,31 @@ export class GitHubService {
    *
    * Team slugs must be in "@org/team-name" format, e.g. "@elastic/obs-onboarding-team".
    */
+  /**
+   * Returns all open, non-draft PRs for the repo — used as a fallback when no
+   * GitHub teams are configured (e.g. personal repos or repos without org teams).
+   */
+  async listAllOpenPRs(): Promise<GhPullRequest[]> {
+    const JSON_FIELDS =
+      'number,title,body,isDraft,additions,deletions,createdAt,headRefName,headRefOid,baseRefName,reviewRequests,reviewDecision,author,url,latestReviews,assignees,comments';
+    log(`[listAllOpenPRs] Fetching all open PRs for ${this.repo}`);
+    const raw = await runGh([
+      'pr',
+      'list',
+      '--repo',
+      this.repo,
+      '--state',
+      'open',
+      '--json',
+      JSON_FIELDS,
+      '--limit',
+      '200',
+    ]);
+    const prs = (JSON.parse(raw) as GhPullRequest[]).filter((pr) => !pr.isDraft);
+    log(`[listAllOpenPRs] ${prs.length} PRs`);
+    return prs;
+  }
+
   async listOpenPRsForTeams(teamSlugs: string[]): Promise<GhPullRequest[]> {
     if (teamSlugs.length === 0) {
       log('No teams provided — cannot fetch team PRs');
