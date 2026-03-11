@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.22] - 2026-03-11
+
+### Added
+- **CodeRabbit Issues section**: a new "CodeRabbit Issues" section now appears in the PR review pane (between Changed Files and Discussion) when CodeRabbit has posted inline review comments. Issues are parsed from CodeRabbit's line comments, grouped by severity (Critical, Major, Medium, Minor, Nitpick), and each issue card opens the file at the relevant line when clicked
+
+---
+
 ## [0.1.21] - 2026-03-11
 
 ### Added
