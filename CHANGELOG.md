@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.21] - 2026-03-11
+
+### Added
+- **Customizable server commands**: the Elasticsearch and Kibana buttons now have two extra controls — a ⚙ button to edit the startup command inline (pre-filled with the last used command, saved to `localStorage`), and a ▾ button to pick from previously saved commands. This makes it easy to switch between configurations such as `yarn es snapshot --license=trial` without retyping
+- **Server `'starting'` state**: clicking Start/Restart now immediately transitions the button to a yellow spinner rather than staying on "Start" until the port opens. The poller also treats an open terminal with a closed port as `'starting'` instead of `'stopped'`, so the state stays accurate throughout the boot sequence
+- **Terminal close resets server state instantly**: closing an Elasticsearch or Kibana terminal now immediately resets its button back to "Start" rather than waiting up to 5 seconds for the next poll cycle
+
+---
+
 ## [0.1.20] - 2026-03-11
 
 ### Fixed
