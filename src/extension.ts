@@ -63,13 +63,55 @@ function getKibanaDevUrl(workspaceRoot: string): string {
 
   return `http://${host}:${port}${basePath}`;
 }
+/**
+ * Detects the GitHub "owner/repo" string from the workspace's `origin` remote URL.
+ * Handles both HTTPS (https://github.com/owner/repo.git) and SSH (git@github.com:owner/repo.git).
+ * Returns undefined if the remote can't be read or isn't a GitHub URL.
+ */
+async function detectRepoFromRemote(cwd: string): Promise<string | undefined> {
+  const execP = promisify(execFile);
+
+  const parseGitHubOwnerRepo = (url: string): string | undefined =>
+    url.match(/github\.com[/:](.+?)(?:\.git)?$/)?.[1];
+
+  const getRemoteOwnerRepo = async (remote: string): Promise<string | undefined> => {
+    try {
+      const { stdout } = await execP('git', ['remote', 'get-url', remote], {
+        cwd,
+        encoding: 'utf8',
+      });
+      return parseGitHubOwnerRepo(stdout.trim());
+    } catch {
+      return undefined;
+    }
+  };
+
+  // In a fork workflow, `upstream` points to the canonical repo (e.g. elastic/kibana)
+  // while `origin` points to the user's fork. Prefer upstream so we query the right repo.
+  const upstream = await getRemoteOwnerRepo('upstream');
+  if (upstream) {
+    log(`Detected repo from upstream remote: ${upstream}`);
+    return upstream;
+  }
+
+  const origin = await getRemoteOwnerRepo('origin');
+  if (origin) {
+    log(`Detected repo from origin remote: ${origin}`);
+    return origin;
+  }
+
+  return undefined;
+}
+
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   initLogger(context);
   log('Extension activating…');
 
   // ─── Services ──────────────────────────────────────────────────────────────
   const config = vscode.workspace.getConfiguration('elastic-pr-reviewer');
-  const repo = config.get<string>('repo', 'elastic/kibana');
+  const configuredRepo = config.get<string>('repo', '');
+  const activationRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd();
+  const repo = configuredRepo || (await detectRepoFromRemote(activationRoot)) || 'elastic/kibana';
   log(`Repo: ${repo}`);
 
   const githubService = new GitHubService(repo);
