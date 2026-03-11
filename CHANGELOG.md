@@ -1,6 +1,13 @@
 # Changelog
 
-## [0.1.19] - 2026-03-04
+## [0.1.20] - 2026-03-11
+
+### Fixed
+- **Review Queue empty when using the extension outside of Kibana**: the target repository is now auto-detected from the workspace's git remotes instead of always defaulting to `elastic/kibana`. `upstream` is tried first (canonical repo in a fork workflow), then `origin` (direct clone). The explicit `elastic-pr-reviewer.repo` setting still takes priority. Falls back to `elastic/kibana` if no remote can be parsed
+
+---
+
+## [0.1.19] - 2026-03-10
 
 ### Added
 - **New commits indicator on PR cards**: PR cards in the Review Queue now show a small amber dot when new commits have been pushed since the last time you opened that PR. Hovering the dot shows a "New commits added" tooltip. The dot disappears once you click the card. Works across all queue buckets (Unreviewed, In review, Approved) and persists across sessions via `localStorage`
