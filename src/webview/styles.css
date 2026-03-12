@@ -313,6 +313,7 @@ body {
 }
 .section-nav-btn {
   background: none;
+  color: var(--vscode-foreground);
   border: none;
   font-size: 12px;
   font-weight: 500;
