@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.23] - 2026-03-12
+
+### Fixed
+- **Section nav buttons use theme foreground**: the Checkout, Refresh, and other section nav bar buttons now explicitly use `var(--vscode-foreground)` so their text respects the editor theme (e.g. correct contrast in dark and light themes)
+
+---
+
 ## [0.1.22] - 2026-03-11
 
 ### Added
